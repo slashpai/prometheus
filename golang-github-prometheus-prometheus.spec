@@ -38,12 +38,12 @@ BuildRequires: prometheus-promu
 %description
 %{summary}
 
-%package -n %{project}-prometheus
+%package -n %{project}
 Summary:        %{summary}
-Provides:       prometheus-prometheus = %{version}-%{release}
-Obsoletes:      prometheus-prometheus < %{version}-%{release}
+Provides:       prometheus = %{version}-%{release}
+Obsoletes:      prometheus < %{version}-%{release}
 
-%description -n %{project}-prometheus
+%description -n %{project}
 %{summary}
 
 %prep
@@ -78,7 +78,7 @@ install -D -p -m 0644 console_libraries/* %{buildroot}%{_datadir}/prometheus/con
 install -d %{buildroot}%{_datadir}/prometheus/consoles
 install -D -p -m 0644 consoles/* %{buildroot}%{_datadir}/prometheus/consoles
 
-%files -n %{project}-prometheus
+%files -n %{project}
 %license LICENSE NOTICE
 %doc CHANGELOG.md CONTRIBUTING.md MAINTAINERS.md README.md
 %{_bindir}/prometheus
