@@ -14,7 +14,7 @@
 }
 %global shortcommit     %(c=%{commit}; echo ${c:0:7})
 %global gopathdir       %{_sourcedir}/go
-%global upstream_ver    2.3.1
+%global upstream_ver    2.3.2
 %global rpm_ver         %(v=%{upstream_ver}; echo ${v//-/_})
 %global download_prefix %{provider}.%{provider_tld}/openshift/%{repo}
 
@@ -91,6 +91,9 @@ install -D -p -m 0644 consoles/* %{buildroot}%{_datadir}/prometheus/consoles
 %{_datadir}/prometheus/consoles
 
 %changelog
+* Mon Jul 15 2018 Simon Pasquier <spasquie@redhat.com> - 2.3.2-1
+- Upgrade to 2.3.2
+
 * Mon Jun 25 2018 Simon Pasquier <spasquie@redhat.com> - 2.3.1-1
 - Upgrade to 2.3.1
 
