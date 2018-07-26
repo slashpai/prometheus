@@ -5,8 +5,8 @@ LABEL maintainer="OpenShift Development <dev@lists.openshift.redhat.com>" \
       version="v2.3.2" \
       architecture=x86_64
 
-RUN yum-config-manager --enable rhel-7-server-ose-3.8-rpms && \
-    yum install -y prometheus && \
+# The appropriate yum repos are enabled at build time by the CI system
+RUN yum install -y prometheus && \
     yum clean all
 RUN ln -s /usr/share/prometheus/console_libraries /usr/share/prometheus/consoles/ /etc/prometheus/
 RUN mkdir -p /prometheus && \
