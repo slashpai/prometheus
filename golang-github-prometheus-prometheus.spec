@@ -22,15 +22,14 @@ Name:		golang-%{provider}-%{project}-%{repo}
 # Version and release information will be automatically managed by CD
 # It will be kept in sync with OCP builds.
 Version:	%{rpm_ver}
-Release:	1.git%{shortcommit}%{?dist}
+Release:	2.git%{shortcommit}%{?dist}
 Summary:	The Prometheus monitoring system and time series database
 License:	ASL 2.0
 URL:		https://prometheus.io/
 Source0:	https://%{download_prefix}/archive/%{commit}/%{repo}-%{commit}.tar.gz
 
 # e.g. el6 has ppc64 arch without gcc-go, so EA tag is required
-# promu-based packages FTBFS on aarch64 (#1487462)
-ExclusiveArch:  %{?go_arches:%{go_arches}}%{!?go_arches:%{ix86} x86_64 %{arm} ppc64le s390x}
+ExclusiveArch:  %{?go_arches:%{go_arches}}%{!?go_arches:%{ix86} x86_64 aarch64 %{arm} ppc64le s390x}
 # If go_compiler is not set to 1, there is no virtual provide. Use golang instead.
 BuildRequires: %{?go_compiler:compiler(go-compiler)}%{!?go_compiler:golang}
 BuildRequires: prometheus-promu
@@ -91,6 +90,9 @@ install -D -p -m 0644 consoles/* %{buildroot}%{_datadir}/prometheus/consoles
 %{_datadir}/prometheus/consoles
 
 %changelog
+* Fri Jul 27 2018 Simon Pasquier <spasquie@redhat.com> - 2.3.2-2
+- Enable aarch64
+
 * Mon Jul 15 2018 Simon Pasquier <spasquie@redhat.com> - 2.3.2-1
 - Upgrade to 2.3.2
 
