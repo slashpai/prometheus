@@ -29,6 +29,7 @@ import (
 	"github.com/prometheus/prometheus/discovery/targetgroup"
 	"github.com/prometheus/prometheus/pkg/labels"
 	"github.com/prometheus/prometheus/pkg/relabel"
+	"github.com/prometheus/prometheus/pkg/textparse"
 	"github.com/prometheus/prometheus/pkg/value"
 	"github.com/prometheus/prometheus/storage"
 )
@@ -52,10 +53,12 @@ type Target struct {
 	// Additional URL parmeters that are part of the target URL.
 	params url.Values
 
-	mtx        sync.RWMutex
-	lastError  error
-	lastScrape time.Time
-	health     TargetHealth
+	mtx                sync.RWMutex
+	lastError          error
+	lastScrape         time.Time
+	lastScrapeDuration time.Duration
+	health             TargetHealth
+	metadata           metricMetadataStore
 }
 
 // NewTarget creates a reasonably configured target for querying.
@@ -70,6 +73,46 @@ func NewTarget(labels, discoveredLabels labels.Labels, params url.Values) *Targe
 
 func (t *Target) String() string {
 	return t.URL().String()
+}
+
+type metricMetadataStore interface {
+	listMetadata() []MetricMetadata
+	getMetadata(metric string) (MetricMetadata, bool)
+}
+
+// MetricMetadata is a piece of metadata for a metric.
+type MetricMetadata struct {
+	Metric string
+	Type   textparse.MetricType
+	Help   string
+	Unit   string
+}
+
+func (t *Target) MetadataList() []MetricMetadata {
+	t.mtx.RLock()
+	defer t.mtx.RUnlock()
+
+	if t.metadata == nil {
+		return nil
+	}
+	return t.metadata.listMetadata()
+}
+
+// Metadata returns type and help metadata for the given metric.
+func (t *Target) Metadata(metric string) (MetricMetadata, bool) {
+	t.mtx.RLock()
+	defer t.mtx.RUnlock()
+
+	if t.metadata == nil {
+		return MetricMetadata{}, false
+	}
+	return t.metadata.getMetadata(metric)
+}
+
+func (t *Target) setMetadataStore(s metricMetadataStore) {
+	t.mtx.Lock()
+	defer t.mtx.Unlock()
+	t.metadata = s
 }
 
 // hash returns an identifying hash for the target.
@@ -165,6 +208,7 @@ func (t *Target) report(start time.Time, dur time.Duration, err error) {
 
 	t.lastError = err
 	t.lastScrape = start
+	t.lastScrapeDuration = dur
 }
 
 // LastError returns the error encountered during the last scrape.
@@ -181,6 +225,14 @@ func (t *Target) LastScrape() time.Time {
 	defer t.mtx.RUnlock()
 
 	return t.lastScrape
+}
+
+// LastScrapeDuration returns how long the last scrape of the target took.
+func (t *Target) LastScrapeDuration() time.Duration {
+	t.mtx.RLock()
+	defer t.mtx.RUnlock()
+
+	return t.lastScrapeDuration
 }
 
 // Health returns the last known health state of the target.

@@ -17,18 +17,15 @@ STATICCHECK_IGNORE = \
   github.com/prometheus/prometheus/discovery/kubernetes/kubernetes.go:SA1019 \
   github.com/prometheus/prometheus/discovery/kubernetes/node.go:SA1019 \
   github.com/prometheus/prometheus/documentation/examples/remote_storage/remote_storage_adapter/main.go:SA1019 \
-  github.com/prometheus/prometheus/pkg/textparse/lex.l.go:SA4006 \
+  github.com/prometheus/prometheus/pkg/textparse/promlex.l.go:SA4006 \
+  github.com/prometheus/prometheus/pkg/textparse/openmetricslex.l.go:SA4006 \
   github.com/prometheus/prometheus/pkg/pool/pool.go:SA6002 \
-  github.com/prometheus/prometheus/promql/engine.go:SA6002
+  github.com/prometheus/prometheus/promql/engine.go:SA6002 \
+  github.com/prometheus/prometheus/prompb/rpc.pb.gw.go:SA1019
 
 DOCKER_IMAGE_NAME       ?= prometheus
 
-ifdef DEBUG
-	bindata_flags = -debug
-endif
-
+.PHONY: assets
 assets:
 	@echo ">> writing assets"
-	@$(GO) get -u github.com/jteeuwen/go-bindata/...
-	@go-bindata $(bindata_flags) -pkg ui -o web/ui/bindata.go -ignore '(.*\.map|bootstrap\.js|bootstrap-theme\.css|bootstrap\.css)'  web/ui/templates/... web/ui/static/...
-	@$(GO) fmt ./web/ui
+	cd $(PREFIX)/web/ui && go generate
