@@ -14,7 +14,7 @@
 }
 %global shortcommit     %(c=%{commit}; echo ${c:0:7})
 %global gopathdir       %{_sourcedir}/go
-%global upstream_ver    2.3.2
+%global upstream_ver    2.5.0
 %global rpm_ver         %(v=%{upstream_ver}; echo ${v//-/_})
 %global download_prefix %{provider}.%{provider_tld}/openshift/%{repo}
 
@@ -22,7 +22,7 @@ Name:		golang-%{provider}-%{project}-%{repo}
 # Version and release information will be automatically managed by CD
 # It will be kept in sync with OCP builds.
 Version:	%{rpm_ver}
-Release:	2.git%{shortcommit}%{?dist}
+Release:	1.git%{shortcommit}%{?dist}
 Summary:	The Prometheus monitoring system and time series database
 License:	ASL 2.0
 URL:		https://prometheus.io/
@@ -90,6 +90,9 @@ install -D -p -m 0644 consoles/* %{buildroot}%{_datadir}/prometheus/consoles
 %{_datadir}/prometheus/consoles
 
 %changelog
+* Wed Nov 07 2018 Simon Pasquier <spasquie@redhat.com> - 2.5.0-1
+- Upgrade to 2.5.0
+
 * Thu Sep 27 2018 Simon Pasquier <spasquie@redhat.com> - 2.3.2-3
 - Remove stop command in systemd unit
 
