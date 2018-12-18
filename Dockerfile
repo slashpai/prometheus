@@ -8,7 +8,7 @@ LABEL io.k8s.display-name="OpenShift Prometheus" \
       io.k8s.description="The Prometheus monitoring system and time series database." \
       io.openshift.tags="prometheus,monitoring" \
       maintainer="The Prometheus Authors <prometheus-developers@googlegroups.com>" \
-      version="v2.5.0"
+      version="v2.6.0"
 
 ARG FROM_DIRECTORY=/go/src/github.com/prometheus/prometheus
 COPY --from=builder ${FROM_DIRECTORY}/prometheus                            /bin/prometheus
