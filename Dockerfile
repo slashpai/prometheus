@@ -8,7 +8,7 @@ LABEL io.k8s.display-name="OpenShift Prometheus" \
       io.k8s.description="The Prometheus monitoring system and time series database." \
       io.openshift.tags="prometheus,monitoring" \
       maintainer="The Prometheus Authors <prometheus-developers@googlegroups.com>" \
-      version="v2.5.0"
+      version="v2.6.0"
 
 ARG FROM_DIRECTORY=/go/src/github.com/prometheus/prometheus
 COPY --from=builder ${FROM_DIRECTORY}/prometheus                            /bin/prometheus
@@ -24,9 +24,5 @@ RUN mkdir -p /prometheus && \
 USER       nobody
 EXPOSE     9090
 VOLUME     [ "/prometheus" ]
-WORKDIR    /prometheus
+WORKDIR    /etc/prometheus
 ENTRYPOINT [ "/bin/prometheus" ]
-CMD        [ "--config.file=/etc/prometheus/prometheus.yml", \
-             "--storage.tsdb.path=/prometheus", \
-             "--web.console.libraries=/usr/share/prometheus/console_libraries", \
-             "--web.console.templates=/usr/share/prometheus/consoles" ]
