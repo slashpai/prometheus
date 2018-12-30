@@ -19,10 +19,10 @@ COPY --from=builder ${FROM_DIRECTORY}/consoles/                             /usr
 
 RUN ln -s /usr/share/prometheus/console_libraries /usr/share/prometheus/consoles/ /etc/prometheus/
 RUN mkdir -p /prometheus && \
-    chown -R nobody:nobody etc/prometheus /prometheus
+    chgrp -R 0 /etc/prometheus /prometheus && \
+    chmod -R g=u /etc/prometheus /prometheus
 
 USER       nobody
 EXPOSE     9090
-VOLUME     [ "/prometheus" ]
 WORKDIR    /etc/prometheus
 ENTRYPOINT [ "/bin/prometheus" ]
