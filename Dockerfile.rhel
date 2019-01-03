@@ -1,7 +1,8 @@
 FROM registry.svc.ci.openshift.org/ocp/builder:golang-1.10 AS builder
 WORKDIR /go/src/github.com/prometheus/prometheus
 COPY . .
-RUN make build
+ARG BUILD_PROMU=false
+RUN yum install -y prometheus-promu && make build && yum clean all
 
 FROM  registry.svc.ci.openshift.org/ocp/4.0:base
 LABEL io.k8s.display-name="OpenShift Prometheus" \
