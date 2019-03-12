@@ -14,7 +14,7 @@
 }
 %global shortcommit     %(c=%{commit}; echo ${c:0:7})
 %global gopathdir       %{_sourcedir}/go
-%global upstream_ver    2.7.1
+%global upstream_ver    2.7.2
 %global rpm_ver         %(v=%{upstream_ver}; echo ${v//-/_})
 %global download_prefix %{provider}.%{provider_tld}/openshift/%{repo}
 
@@ -90,6 +90,10 @@ install -D -p -m 0644 consoles/* %{buildroot}%{_datadir}/prometheus/consoles
 %{_datadir}/prometheus/consoles
 
 %changelog
+* Tue Mar 12 2019 Simon Pasquier <spasquie@redhat.com> - 2.7.2-1
+- Upgrade to 2.7.2
+- Include patch for reloading certificates automatically
+
 * Thu Jan 31 2019 Simon Pasquier <spasquie@redhat.com> - 2.7.1-1
 - Upgrade to 2.7.1
 
