@@ -1,3 +1,11 @@
+## 2.11.2 / 2019-08-14
+
+* [BUGFIX/SECURITY] Fix a Stored DOM XSS vulnerability with query history. #5888
+
+## 2.11.1 / 2019-07-10
+
+* [BUGFIX] Fix potential panic when prometheus is watching multiple zookeeper paths. #5749
+
 ## 2.11.0 / 2019-07-09
 
 * [CHANGE] Remove `max_retries` from queue_config (it has been unused since rewriting remote-write to utilize the write-ahead-log). #5649
