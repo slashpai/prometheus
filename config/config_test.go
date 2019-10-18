@@ -25,7 +25,6 @@ import (
 
 	config_util "github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
-	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
 
 	"github.com/prometheus/prometheus/discovery/azure"
@@ -662,7 +661,16 @@ func TestLoadConfig(t *testing.T) {
 	testutil.Ok(t, err)
 
 	expectedConf.original = c.original
-	assert.Equal(t, expectedConf, c)
+	testutil.Equals(t, expectedConf, c)
+}
+
+func TestScrapeIntervalLarger(t *testing.T) {
+	c, err := LoadFile("testdata/scrape_interval_larger.good.yml")
+	testutil.Ok(t, err)
+	testutil.Equals(t, 1, len(c.ScrapeConfigs))
+	for _, sc := range c.ScrapeConfigs {
+		testutil.Equals(t, true, sc.ScrapeInterval >= sc.ScrapeTimeout)
+	}
 }
 
 // YAML marshaling must not reveal authentication credentials.
@@ -898,7 +906,7 @@ func TestBadStaticConfigsJSON(t *testing.T) {
 	testutil.Ok(t, err)
 	var tg targetgroup.Group
 	err = json.Unmarshal(content, &tg)
-	testutil.NotOk(t, err, "")
+	testutil.NotOk(t, err)
 }
 
 func TestBadStaticConfigsYML(t *testing.T) {
@@ -906,7 +914,7 @@ func TestBadStaticConfigsYML(t *testing.T) {
 	testutil.Ok(t, err)
 	var tg targetgroup.Group
 	err = yaml.UnmarshalStrict(content, &tg)
-	testutil.NotOk(t, err, "")
+	testutil.NotOk(t, err)
 }
 
 func TestEmptyConfig(t *testing.T) {

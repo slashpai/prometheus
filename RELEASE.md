@@ -18,7 +18,8 @@ Release cadence of first pre-releases being cut is 6 weeks.
 | v2.11          | 2019-07-03                                 | Frederic Branczyk (GitHub: @brancz)         |
 | v2.12          | 2019-08-14                                 | Julius Volz (GitHub: @juliusv)              |
 | v2.13          | 2019-09-25                                 | Krasi Georgiev (GitHub: @krasi-georgiev)    |
-| v2.14          | 2019-11-06                                 | **searching for volunteer**                 |
+| v2.14          | 2019-11-06                                 | Chris Marchbanks (GitHub: @csmarchbanks)    |
+| v2.15          | 2019-12-18                                 | **searching for volunteer**                 |
 
 If you are interested in volunteering please create a pull request against the [prometheus/prometheus](https://github.com/prometheus/prometheus) repository and propose yourself for the release series of your choice.
 
@@ -88,9 +89,9 @@ Now all you can do is to wait for tarballs to be uploaded to the Github release 
 
 If the release has happened in the latest release branch, merge the changes into master.
 
-To update the docs, a PR needs to be created to `prometheus/docs`. See [this PR](https://github.com/prometheus/docs/pull/952/files) for inspiration.
+To update the docs, a PR needs to be created to `prometheus/docs`. See [this PR](https://github.com/prometheus/docs/pull/952/files) for inspiration (note: only actually merge this for final releases, not for pre-releases like a release candidate).
 
-Once the binaries have been uploaded, announce the release on `prometheus-announce@googlegroups.com`. (Please do not use `prometheus-users@googlegroups.com` for announcements anymore.) Check out previous announcement mails for inspiration. 
+Once the binaries have been uploaded, announce the release on `prometheus-announce@googlegroups.com`. (Please do not use `prometheus-users@googlegroups.com` for announcements anymore.) Check out previous announcement mails for inspiration.
 
 ### Pre-releases
 
@@ -99,4 +100,5 @@ The following changes to the above procedures apply:
 * In line with [Semantic Versioning](https://semver.org/), append something like `-rc.0` to the version (with the corresponding changes to the tag name, the release name etc.).
 * Tick the _This is a pre-release_ box when drafting the release in the Github UI.
 * Still update `CHANGELOG.md`, but when you cut the final release later, merge all the changes from the pre-releases into the one final update.
+* Run the benchmark for 3 days using the `/benchmark x.y.z` command, `x.y.z` being the latest stable patch release of the previous minor release series.
 
