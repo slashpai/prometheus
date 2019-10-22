@@ -66,7 +66,7 @@ var (
 	targetScrapePools = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "prometheus_target_scrape_pools_total",
-			Help: "Total number of scrape pool creation atttempts.",
+			Help: "Total number of scrape pool creation attempts.",
 		},
 	)
 	targetScrapePoolsFailed = prometheus.NewCounter(
@@ -188,7 +188,7 @@ func newScrapePool(cfg *config.ScrapeConfig, app Appendable, jitterSeed uint64, 
 		logger = log.NewNopLogger()
 	}
 
-	client, err := config_util.NewClientFromConfig(cfg.HTTPClientConfig, cfg.JobName)
+	client, err := config_util.NewClientFromConfig(cfg.HTTPClientConfig, cfg.JobName, false)
 	if err != nil {
 		targetScrapePoolsFailed.Inc()
 		return nil, errors.Wrap(err, "error creating HTTP client")
@@ -287,7 +287,7 @@ func (sp *scrapePool) reload(cfg *config.ScrapeConfig) error {
 	sp.mtx.Lock()
 	defer sp.mtx.Unlock()
 
-	client, err := config_util.NewClientFromConfig(cfg.HTTPClientConfig, cfg.JobName)
+	client, err := config_util.NewClientFromConfig(cfg.HTTPClientConfig, cfg.JobName, false)
 	if err != nil {
 		targetScrapePoolReloadsFailed.Inc()
 		return errors.Wrap(err, "error creating HTTP client")
@@ -452,17 +452,13 @@ func mutateSampleLabels(lset labels.Labels, target *Target, honor bool, rc []*re
 		}
 	} else {
 		for _, l := range target.Labels() {
-			lv := lset.Get(l.Name)
-			if lv != "" {
-				lb.Set(model.ExportedLabelPrefix+l.Name, lv)
-			}
+			// existingValue will be empty if l.Name doesn't exist.
+			existingValue := lset.Get(l.Name)
+			// Because setting a label with an empty value is a no-op,
+			// this will only create the prefixed label if necessary.
+			lb.Set(model.ExportedLabelPrefix+l.Name, existingValue)
+			// It is now safe to set the target label.
 			lb.Set(l.Name, l.Value)
-		}
-	}
-
-	for _, l := range lb.Labels() {
-		if l.Value == "" {
-			lb.Del(l.Name)
 		}
 	}
 
@@ -479,10 +475,7 @@ func mutateReportSampleLabels(lset labels.Labels, target *Target) labels.Labels 
 	lb := labels.NewBuilder(lset)
 
 	for _, l := range target.Labels() {
-		lv := lset.Get(l.Name)
-		if lv != "" {
-			lb.Set(model.ExportedLabelPrefix+l.Name, lv)
-		}
+		lb.Set(model.ExportedLabelPrefix+l.Name, lset.Get(l.Name))
 		lb.Set(l.Name, l.Value)
 	}
 
@@ -611,8 +604,8 @@ type scrapeLoop struct {
 	sampleMutator       labelsMutator
 	reportSampleMutator labelsMutator
 
+	parentCtx context.Context
 	ctx       context.Context
-	scrapeCtx context.Context
 	cancel    func()
 	stopped   chan struct{}
 }
@@ -867,10 +860,10 @@ func newScrapeLoop(ctx context.Context,
 		stopped:             make(chan struct{}),
 		jitterSeed:          jitterSeed,
 		l:                   l,
-		ctx:                 ctx,
+		parentCtx:           ctx,
 		honorTimestamps:     honorTimestamps,
 	}
-	sl.scrapeCtx, sl.cancel = context.WithCancel(ctx)
+	sl.ctx, sl.cancel = context.WithCancel(ctx)
 
 	return sl
 }
@@ -879,7 +872,7 @@ func (sl *scrapeLoop) run(interval, timeout time.Duration, errc chan<- error) {
 	select {
 	case <-time.After(sl.scraper.offset(interval, sl.jitterSeed)):
 		// Continue after a scraping offset.
-	case <-sl.scrapeCtx.Done():
+	case <-sl.ctx.Done():
 		close(sl.stopped)
 		return
 	}
@@ -892,10 +885,10 @@ func (sl *scrapeLoop) run(interval, timeout time.Duration, errc chan<- error) {
 mainLoop:
 	for {
 		select {
-		case <-sl.ctx.Done():
+		case <-sl.parentCtx.Done():
 			close(sl.stopped)
 			return
-		case <-sl.scrapeCtx.Done():
+		case <-sl.ctx.Done():
 			break mainLoop
 		default:
 		}
@@ -957,10 +950,10 @@ mainLoop:
 		last = start
 
 		select {
-		case <-sl.ctx.Done():
+		case <-sl.parentCtx.Done():
 			close(sl.stopped)
 			return
-		case <-sl.scrapeCtx.Done():
+		case <-sl.ctx.Done():
 			break mainLoop
 		case <-ticker.C:
 		}
@@ -987,7 +980,7 @@ func (sl *scrapeLoop) endOfRunStaleness(last time.Time, ticker *time.Ticker, int
 	// Wait for when the next scrape would have been, record its timestamp.
 	var staleTime time.Time
 	select {
-	case <-sl.ctx.Done():
+	case <-sl.parentCtx.Done():
 		return
 	case <-ticker.C:
 		staleTime = time.Now()
@@ -996,14 +989,14 @@ func (sl *scrapeLoop) endOfRunStaleness(last time.Time, ticker *time.Ticker, int
 	// Wait for when the next scrape would have been, if the target was recreated
 	// samples should have been ingested by now.
 	select {
-	case <-sl.ctx.Done():
+	case <-sl.parentCtx.Done():
 		return
 	case <-ticker.C:
 	}
 
 	// Wait for an extra 10% of the interval, just to be safe.
 	select {
-	case <-sl.ctx.Done():
+	case <-sl.parentCtx.Done():
 		return
 	case <-time.After(interval / 10):
 	}
@@ -1024,28 +1017,6 @@ func (sl *scrapeLoop) endOfRunStaleness(last time.Time, ticker *time.Ticker, int
 func (sl *scrapeLoop) stop() {
 	sl.cancel()
 	<-sl.stopped
-}
-
-type sample struct {
-	metric labels.Labels
-	t      int64
-	v      float64
-}
-
-//lint:ignore U1000 staticcheck falsely reports that samples is unused.
-type samples []sample
-
-func (s samples) Len() int      { return len(s) }
-func (s samples) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-
-func (s samples) Less(i, j int) bool {
-	d := labels.Compare(s[i].metric, s[j].metric)
-	if d < 0 {
-		return true
-	} else if d > 0 {
-		return false
-	}
-	return s[i].t < s[j].t
 }
 
 func (sl *scrapeLoop) append(b []byte, contentType string, ts time.Time) (total, added, seriesAdded int, err error) {
