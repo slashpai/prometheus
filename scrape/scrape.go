@@ -273,8 +273,7 @@ func (sp *scrapePool) stop() {
 		delete(sp.activeTargets, fp)
 	}
 	wg.Wait()
-	// Disabled until Go 1.12 is used.
-	//sp.client.CloseIdleConnections()
+	sp.client.CloseIdleConnections()
 }
 
 // reload the scrape pool with the given scrape configuration. The target state is preserved
@@ -293,8 +292,7 @@ func (sp *scrapePool) reload(cfg *config.ScrapeConfig) error {
 		return errors.Wrap(err, "error creating HTTP client")
 	}
 	sp.config = cfg
-	// Disabled until Go 1.12 is used.
-	//oldClient := sp.client
+	oldClient := sp.client
 	sp.client = client
 
 	var (
@@ -333,8 +331,7 @@ func (sp *scrapePool) reload(cfg *config.ScrapeConfig) error {
 	}
 
 	wg.Wait()
-	// Disabled until Go 1.12 is used.
-	//oldClient.CloseIdleConnections()
+	oldClient.CloseIdleConnections()
 	targetReloadIntervalLength.WithLabelValues(interval.String()).Observe(
 		time.Since(start).Seconds(),
 	)

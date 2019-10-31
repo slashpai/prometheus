@@ -11,9 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Allow Go 1.11 until Go 1.12 is used.
-// Go 1.12 is only required to support darwin platforms properly.
-// +build go1.11
+// +build go1.12
 
 // Package goversion enforces the go version suported by the tsdb module.
 package goversion
