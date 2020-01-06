@@ -12,10 +12,7 @@ build:
           path: ./cmd/promtool
         - name: tsdbtool
           path: ./tsdb/cmd/tsdb
-    # NOTE(spasquie): Go 1.12 doesn't support '-tags netgo,builtinassets' and promu doesn't support
-    # space-separated tags so the 'ondiskassets' build tag is used instead of 'builtinassets'.
-    flags: -mod=vendor -a -tags netgo
-    #flags: -mod=vendor -a -tags netgo,builtinassets
+    flags: -mod=vendor -a -tags netgo,builtinassets
     ldflags: |
         -s
         -X github.com/prometheus/common/version.Version={{.Version}}

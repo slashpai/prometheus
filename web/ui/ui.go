@@ -11,8 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// NOTE(spasquie): using ondiskassets tag becaues Go 1.12 doesn't support comma-separated tags.
-// +build ondiskassets
+// +build !builtinassets
 
 package ui
 
