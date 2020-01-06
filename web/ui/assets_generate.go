@@ -28,9 +28,8 @@ import (
 func main() {
 	fs := modtimevfs.New(ui.Assets, time.Unix(1, 0))
 	err := vfsgen.Generate(fs, vfsgen.Options{
-		PackageName: "ui",
-		// NOTE(spasquie): using ondiskassets tag becaues Go 1.12 doesn't support comma-separated tags.
-		BuildTags:    "!ondiskassets",
+		PackageName:  "ui",
+		BuildTags:    "builtinassets",
 		VariableName: "Assets",
 	})
 	if err != nil {

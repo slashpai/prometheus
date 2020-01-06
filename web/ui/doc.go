@@ -21,5 +21,4 @@ import (
 	_ "github.com/shurcooL/vfsgen"
 )
 
-// NOTE(spasquie): using ondiskassets tag becaues Go 1.12 doesn't support comma-separated tags.
-//go:generate go run -mod=vendor -tags=ondiskassets assets_generate.go
+//go:generate go run -mod=vendor assets_generate.go
