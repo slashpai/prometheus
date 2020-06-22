@@ -47,6 +47,12 @@ var Assets = func() http.FileSystem {
 	static := filter.Keep(
 		http.Dir(path.Join(assetsPrefix, "static")),
 		func(path string, fi os.FileInfo) bool {
+			// Disable the experimental React-based UI in OCP builds.
+			// TODO: to be removed when the legacy UI is replaced by the React UI.
+			if strings.HasPrefix(path, "/react") {
+				return false
+			}
+			// End TODO
 			return fi.IsDir() ||
 				(!strings.HasSuffix(path, "map.js") &&
 					!strings.HasSuffix(path, "/bootstrap.js") &&
