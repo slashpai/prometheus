@@ -16,6 +16,10 @@ package promql
 import (
 	"context"
 	"errors"
+	"io/ioutil"
+	"os"
+	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -27,12 +31,19 @@ import (
 )
 
 func TestQueryConcurrency(t *testing.T) {
+	maxConcurrency := 10
+
+	dir, err := ioutil.TempDir("", "test_concurrency")
+	testutil.Ok(t, err)
+	defer os.RemoveAll(dir)
+	queryTracker := NewActiveQueryTracker(dir, maxConcurrency, nil)
+
 	opts := EngineOpts{
-		Logger:        nil,
-		Reg:           nil,
-		MaxConcurrent: 10,
-		MaxSamples:    10,
-		Timeout:       100 * time.Second,
+		Logger:             nil,
+		Reg:                nil,
+		MaxSamples:         10,
+		Timeout:            100 * time.Second,
+		ActiveQueryTracker: queryTracker,
 	}
 
 	engine := NewEngine(opts)
@@ -48,7 +59,7 @@ func TestQueryConcurrency(t *testing.T) {
 		return nil
 	}
 
-	for i := 0; i < opts.MaxConcurrent; i++ {
+	for i := 0; i < maxConcurrency; i++ {
 		q := engine.newTestQuery(f)
 		go q.Exec(ctx)
 		select {
@@ -80,25 +91,24 @@ func TestQueryConcurrency(t *testing.T) {
 	}
 
 	// Terminate remaining queries.
-	for i := 0; i < opts.MaxConcurrent; i++ {
+	for i := 0; i < maxConcurrency; i++ {
 		block <- struct{}{}
 	}
 }
 
 func TestQueryTimeout(t *testing.T) {
 	opts := EngineOpts{
-		Logger:        nil,
-		Reg:           nil,
-		MaxConcurrent: 20,
-		MaxSamples:    10,
-		Timeout:       5 * time.Millisecond,
+		Logger:     nil,
+		Reg:        nil,
+		MaxSamples: 10,
+		Timeout:    5 * time.Millisecond,
 	}
 	engine := NewEngine(opts)
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	defer cancelCtx()
 
 	query := engine.newTestQuery(func(ctx context.Context) error {
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 		return contextDone(ctx, "test statement execution")
 	})
 
@@ -106,18 +116,19 @@ func TestQueryTimeout(t *testing.T) {
 	testutil.NotOk(t, res.Err, "expected timeout error but got none")
 
 	var e ErrQueryTimeout
-	testutil.Assert(t, errors.As(res.Err, &e), "expected timeout error but got: %s", res.Err)
+	// TODO: when circleci-windows moves to go 1.13:
+	// testutil.Assert(t, errors.As(res.Err, &e), "expected timeout error but got: %s", res.Err)
+	testutil.Assert(t, strings.HasPrefix(res.Err.Error(), e.Error()), "expected timeout error but got: %s", res.Err)
 }
 
 const errQueryCanceled = ErrQueryCanceled("test statement execution")
 
 func TestQueryCancel(t *testing.T) {
 	opts := EngineOpts{
-		Logger:        nil,
-		Reg:           nil,
-		MaxConcurrent: 10,
-		MaxSamples:    10,
-		Timeout:       10 * time.Second,
+		Logger:     nil,
+		Reg:        nil,
+		MaxSamples: 10,
+		Timeout:    10 * time.Second,
 	}
 	engine := NewEngine(opts)
 	ctx, cancelCtx := context.WithCancel(context.Background())
@@ -146,7 +157,7 @@ func TestQueryCancel(t *testing.T) {
 	<-processing
 
 	testutil.NotOk(t, res.Err, "expected cancellation error for query1 but got none")
-	testutil.Equals(t, res.Err, errQueryCanceled)
+	testutil.Equals(t, errQueryCanceled, res.Err)
 
 	// Canceling a query before starting it must have no effect.
 	query2 := engine.newTestQuery(func(ctx context.Context) error {
@@ -166,6 +177,9 @@ type errQuerier struct {
 func (q *errQuerier) Select(*storage.SelectParams, ...*labels.Matcher) (storage.SeriesSet, storage.Warnings, error) {
 	return errSeriesSet{err: q.err}, nil, q.err
 }
+func (q *errQuerier) SelectSorted(*storage.SelectParams, ...*labels.Matcher) (storage.SeriesSet, storage.Warnings, error) {
+	return errSeriesSet{err: q.err}, nil, q.err
+}
 func (*errQuerier) LabelValues(name string) ([]string, storage.Warnings, error) { return nil, nil, nil }
 func (*errQuerier) LabelNames() ([]string, storage.Warnings, error)             { return nil, nil, nil }
 func (*errQuerier) Close() error                                                { return nil }
@@ -181,11 +195,10 @@ func (e errSeriesSet) Err() error       { return e.err }
 
 func TestQueryError(t *testing.T) {
 	opts := EngineOpts{
-		Logger:        nil,
-		Reg:           nil,
-		MaxConcurrent: 10,
-		MaxSamples:    10,
-		Timeout:       10 * time.Second,
+		Logger:     nil,
+		Reg:        nil,
+		MaxSamples: 10,
+		Timeout:    10 * time.Second,
 	}
 	engine := NewEngine(opts)
 	errStorage := ErrStorage{errors.New("storage error")}
@@ -200,14 +213,14 @@ func TestQueryError(t *testing.T) {
 
 	res := vectorQuery.Exec(ctx)
 	testutil.NotOk(t, res.Err, "expected error on failed select but got none")
-	testutil.Equals(t, res.Err, errStorage)
+	testutil.Equals(t, errStorage, res.Err)
 
 	matrixQuery, err := engine.NewInstantQuery(queryable, "foo[1m]", time.Unix(1, 0))
 	testutil.Ok(t, err)
 
 	res = matrixQuery.Exec(ctx)
 	testutil.NotOk(t, res.Err, "expected error on failed select but got none")
-	testutil.Equals(t, res.Err, errStorage)
+	testutil.Equals(t, errStorage, res.Err)
 }
 
 // paramCheckerQuerier implements storage.Querier which checks the start and end times
@@ -223,7 +236,10 @@ type paramCheckerQuerier struct {
 	t *testing.T
 }
 
-func (q *paramCheckerQuerier) Select(sp *storage.SelectParams, _ ...*labels.Matcher) (storage.SeriesSet, storage.Warnings, error) {
+func (q *paramCheckerQuerier) Select(sp *storage.SelectParams, m ...*labels.Matcher) (storage.SeriesSet, storage.Warnings, error) {
+	return q.SelectSorted(sp, m...)
+}
+func (q *paramCheckerQuerier) SelectSorted(sp *storage.SelectParams, _ ...*labels.Matcher) (storage.SeriesSet, storage.Warnings, error) {
 	testutil.Equals(q.t, q.start, sp.Start)
 	testutil.Equals(q.t, q.end, sp.End)
 	testutil.Equals(q.t, q.grouping, sp.Grouping)
@@ -241,11 +257,10 @@ func (*paramCheckerQuerier) Close() error                                    { r
 
 func TestParamsSetCorrectly(t *testing.T) {
 	opts := EngineOpts{
-		Logger:        nil,
-		Reg:           nil,
-		MaxConcurrent: 10,
-		MaxSamples:    10,
-		Timeout:       10 * time.Second,
+		Logger:     nil,
+		Reg:        nil,
+		MaxSamples: 10,
+		Timeout:    10 * time.Second,
 	}
 
 	// Set the lookback to be smaller and reset at the end.
@@ -446,11 +461,10 @@ func TestParamsSetCorrectly(t *testing.T) {
 
 func TestEngineShutdown(t *testing.T) {
 	opts := EngineOpts{
-		Logger:        nil,
-		Reg:           nil,
-		MaxConcurrent: 10,
-		MaxSamples:    10,
-		Timeout:       10 * time.Second,
+		Logger:     nil,
+		Reg:        nil,
+		MaxSamples: 10,
+		Timeout:    10 * time.Second,
 	}
 	engine := NewEngine(opts)
 	ctx, cancelCtx := context.WithCancel(context.Background())
@@ -483,7 +497,7 @@ func TestEngineShutdown(t *testing.T) {
 	<-processing
 
 	testutil.NotOk(t, res.Err, "expected error on shutdown during query but got none")
-	testutil.Equals(t, res.Err, errQueryCanceled)
+	testutil.Equals(t, errQueryCanceled, res.Err)
 
 	query2 := engine.newTestQuery(func(context.Context) error {
 		t.Fatalf("reached query execution unexpectedly")
@@ -496,7 +510,9 @@ func TestEngineShutdown(t *testing.T) {
 	testutil.NotOk(t, res2.Err, "expected error on querying with canceled context but got none")
 
 	var e ErrQueryCanceled
-	testutil.Assert(t, errors.As(res2.Err, &e), "expected cancellation error but got: %s", res2.Err)
+	// TODO: when circleci-windows moves to go 1.13:
+	// testutil.Assert(t, errors.As(res2.Err, &e), "expected cancellation error but got: %s", res2.Err)
+	testutil.Assert(t, strings.HasPrefix(res2.Err.Error(), e.Error()), "expected cancellation error but got: %s", res2.Err)
 }
 
 func TestEngineEvalStmtTimestamps(t *testing.T) {
@@ -594,7 +610,7 @@ load 10s
 		}
 
 		testutil.Ok(t, res.Err)
-		testutil.Equals(t, res.Value, c.Result)
+		testutil.Equals(t, c.Result, res.Value)
 	}
 
 }
@@ -811,8 +827,8 @@ load 10s
 		testutil.Ok(t, err)
 
 		res := qry.Exec(test.Context())
-		testutil.Equals(t, res.Err, c.Result.Err)
-		testutil.Equals(t, res.Value, c.Result.Value)
+		testutil.Equals(t, c.Result.Err, res.Err)
+		testutil.Equals(t, c.Result.Value, res.Value)
 	}
 }
 
@@ -1095,8 +1111,140 @@ func TestSubquerySelector(t *testing.T) {
 			testutil.Ok(t, err)
 
 			res := qry.Exec(test.Context())
-			testutil.Equals(t, res.Err, c.Result.Err)
-			testutil.Equals(t, res.Value, c.Result.Value)
+			testutil.Equals(t, c.Result.Err, res.Err)
+			mat := res.Value.(Matrix)
+			sort.Sort(mat)
+			testutil.Equals(t, c.Result.Value, mat)
 		}
+	}
+}
+
+type FakeQueryLogger struct {
+	closed bool
+	logs   []interface{}
+}
+
+func NewFakeQueryLogger() *FakeQueryLogger {
+	return &FakeQueryLogger{
+		closed: false,
+		logs:   make([]interface{}, 0),
+	}
+}
+
+func (f *FakeQueryLogger) Close() error {
+	f.closed = true
+	return nil
+}
+
+func (f *FakeQueryLogger) Log(l ...interface{}) error {
+	f.logs = append(f.logs, l...)
+	return nil
+}
+
+func TestQueryLogger_basic(t *testing.T) {
+	opts := EngineOpts{
+		Logger:     nil,
+		Reg:        nil,
+		MaxSamples: 10,
+		Timeout:    10 * time.Second,
+	}
+	engine := NewEngine(opts)
+
+	queryExec := func() {
+		ctx, cancelCtx := context.WithCancel(context.Background())
+		defer cancelCtx()
+		query := engine.newTestQuery(func(ctx context.Context) error {
+			return contextDone(ctx, "test statement execution")
+		})
+		res := query.Exec(ctx)
+		testutil.Ok(t, res.Err)
+	}
+
+	// Query works without query log initalized.
+	queryExec()
+
+	f1 := NewFakeQueryLogger()
+	engine.SetQueryLogger(f1)
+	queryExec()
+	for i, field := range []interface{}{"params", map[string]interface{}{"query": "test statement"}} {
+		testutil.Equals(t, field, f1.logs[i])
+	}
+
+	l := len(f1.logs)
+	queryExec()
+	testutil.Equals(t, 2*l, len(f1.logs))
+
+	// Test that we close the query logger when unsetting it.
+	testutil.Assert(t, !f1.closed, "expected f1 to be open, got closed")
+	engine.SetQueryLogger(nil)
+	testutil.Assert(t, f1.closed, "expected f1 to be closed, got open")
+	queryExec()
+
+	// Test that we close the query logger when swapping.
+	f2 := NewFakeQueryLogger()
+	f3 := NewFakeQueryLogger()
+	engine.SetQueryLogger(f2)
+	testutil.Assert(t, !f2.closed, "expected f2 to be open, got closed")
+	queryExec()
+	engine.SetQueryLogger(f3)
+	testutil.Assert(t, f2.closed, "expected f2 to be closed, got open")
+	testutil.Assert(t, !f3.closed, "expected f3 to be open, got closed")
+	queryExec()
+}
+
+func TestQueryLogger_fields(t *testing.T) {
+	opts := EngineOpts{
+		Logger:     nil,
+		Reg:        nil,
+		MaxSamples: 10,
+		Timeout:    10 * time.Second,
+	}
+	engine := NewEngine(opts)
+
+	f1 := NewFakeQueryLogger()
+	engine.SetQueryLogger(f1)
+
+	ctx, cancelCtx := context.WithCancel(context.Background())
+	ctx = NewOriginContext(ctx, map[string]interface{}{"foo": "bar"})
+	defer cancelCtx()
+	query := engine.newTestQuery(func(ctx context.Context) error {
+		return contextDone(ctx, "test statement execution")
+	})
+
+	res := query.Exec(ctx)
+	testutil.Ok(t, res.Err)
+
+	expected := []string{"foo", "bar"}
+	for i, field := range expected {
+		v := f1.logs[len(f1.logs)-len(expected)+i].(string)
+		testutil.Equals(t, field, v)
+	}
+}
+
+func TestQueryLogger_error(t *testing.T) {
+	opts := EngineOpts{
+		Logger:     nil,
+		Reg:        nil,
+		MaxSamples: 10,
+		Timeout:    10 * time.Second,
+	}
+	engine := NewEngine(opts)
+
+	f1 := NewFakeQueryLogger()
+	engine.SetQueryLogger(f1)
+
+	ctx, cancelCtx := context.WithCancel(context.Background())
+	ctx = NewOriginContext(ctx, map[string]interface{}{"foo": "bar"})
+	defer cancelCtx()
+	testErr := errors.New("failure")
+	query := engine.newTestQuery(func(ctx context.Context) error {
+		return testErr
+	})
+
+	res := query.Exec(ctx)
+	testutil.NotOk(t, res.Err, "query should have failed")
+
+	for i, field := range []interface{}{"params", map[string]interface{}{"query": "test statement"}, "error", testErr} {
+		testutil.Equals(t, f1.logs[i], field)
 	}
 }

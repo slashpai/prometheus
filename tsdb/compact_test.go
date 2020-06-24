@@ -870,7 +870,7 @@ func BenchmarkCompactionFromHead(b *testing.B) {
 	for labelNames := 1; labelNames < totalSeries; labelNames *= 10 {
 		labelValues := totalSeries / labelNames
 		b.Run(fmt.Sprintf("labelnames=%d,labelvalues=%d", labelNames, labelValues), func(b *testing.B) {
-			h, err := NewHead(nil, nil, nil, 1000)
+			h, err := NewHead(nil, nil, nil, 1000, DefaultStripeSize)
 			testutil.Ok(b, err)
 			for ln := 0; ln < labelNames; ln++ {
 				app := h.Appender()
@@ -1079,7 +1079,7 @@ func TestDeleteCompactionBlockAfterFailedReload(t *testing.T) {
 			// Do the compaction and check the metrics.
 			// Compaction should succeed, but the reload should fail and
 			// the new block created from the compaction should be deleted.
-			testutil.NotOk(t, db.compact())
+			testutil.NotOk(t, db.Compact())
 			testutil.Equals(t, 1.0, prom_testutil.ToFloat64(db.metrics.reloadsFailed), "'failed db reload' count metrics mismatch")
 			testutil.Equals(t, 1.0, prom_testutil.ToFloat64(db.compactor.(*LeveledCompactor).metrics.ran), "`compaction` count metric mismatch")
 			testutil.Equals(t, 1.0, prom_testutil.ToFloat64(db.metrics.compactionsFailed), "`compactions failed` count metric mismatch")
