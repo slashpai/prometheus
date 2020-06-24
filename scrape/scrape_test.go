@@ -28,6 +28,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 	dto "github.com/prometheus/client_model/go"
 	config_util "github.com/prometheus/common/config"
@@ -139,6 +140,9 @@ type testLoop struct {
 
 func (l *testLoop) run(interval, timeout time.Duration, errc chan<- error) {
 	l.startFunc(interval, timeout, errc)
+}
+
+func (l *testLoop) disableEndOfRunStalenessMarkers() {
 }
 
 func (l *testLoop) stop() {
@@ -427,12 +431,11 @@ func nopMutator(l labels.Labels) labels.Labels { return l }
 
 func TestScrapeLoopStop(t *testing.T) {
 	var (
-		signal   = make(chan struct{})
+		signal   = make(chan struct{}, 1)
 		appender = &collectResultAppender{}
 		scraper  = &testScraper{}
 		app      = func() storage.Appender { return appender }
 	)
-	defer close(signal)
 
 	sl := newScrapeLoop(context.Background(),
 		scraper,
@@ -492,13 +495,12 @@ func TestScrapeLoopStop(t *testing.T) {
 
 func TestScrapeLoopRun(t *testing.T) {
 	var (
-		signal = make(chan struct{})
+		signal = make(chan struct{}, 1)
 		errc   = make(chan error)
 
 		scraper = &testScraper{}
 		app     = func() storage.Appender { return &nopAppender{} }
 	)
-	defer close(signal)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	sl := newScrapeLoop(ctx,
@@ -644,8 +646,7 @@ func TestScrapeLoopSeriesAdded(t *testing.T) {
 	s := teststorage.New(t)
 	defer s.Close()
 
-	app, err := s.Appender()
-	testutil.Ok(t, err)
+	app := s.Appender()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	sl := newScrapeLoop(ctx,
@@ -676,11 +677,10 @@ func TestScrapeLoopSeriesAdded(t *testing.T) {
 func TestScrapeLoopRunCreatesStaleMarkersOnFailedScrape(t *testing.T) {
 	appender := &collectResultAppender{}
 	var (
-		signal  = make(chan struct{})
+		signal  = make(chan struct{}, 1)
 		scraper = &testScraper{}
 		app     = func() storage.Appender { return appender }
 	)
-	defer close(signal)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	sl := newScrapeLoop(ctx,
@@ -730,12 +730,11 @@ func TestScrapeLoopRunCreatesStaleMarkersOnFailedScrape(t *testing.T) {
 func TestScrapeLoopRunCreatesStaleMarkersOnParseFailure(t *testing.T) {
 	appender := &collectResultAppender{}
 	var (
-		signal     = make(chan struct{})
+		signal     = make(chan struct{}, 1)
 		scraper    = &testScraper{}
 		app        = func() storage.Appender { return appender }
 		numScrapes = 0
 	)
-	defer close(signal)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	sl := newScrapeLoop(ctx,
@@ -788,16 +787,14 @@ func TestScrapeLoopCache(t *testing.T) {
 	s := teststorage.New(t)
 	defer s.Close()
 
-	sapp, err := s.Appender()
-	testutil.Ok(t, err)
+	sapp := s.Appender()
 
 	appender := &collectResultAppender{next: sapp}
 	var (
-		signal  = make(chan struct{})
+		signal  = make(chan struct{}, 1)
 		scraper = &testScraper{}
 		app     = func() storage.Appender { return appender }
 	)
-	defer close(signal)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	sl := newScrapeLoop(ctx,
@@ -866,16 +863,14 @@ func TestScrapeLoopCacheMemoryExhaustionProtection(t *testing.T) {
 	s := teststorage.New(t)
 	defer s.Close()
 
-	sapp, err := s.Appender()
-	testutil.Ok(t, err)
+	sapp := s.Appender()
 
 	appender := &collectResultAppender{next: sapp}
 	var (
-		signal  = make(chan struct{})
+		signal  = make(chan struct{}, 1)
 		scraper = &testScraper{}
 		app     = func() storage.Appender { return appender }
 	)
-	defer close(signal)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	sl := newScrapeLoop(ctx,
@@ -1020,6 +1015,48 @@ func TestScrapeLoopAppend(t *testing.T) {
 	}
 }
 
+func TestScrapeLoopAppendCacheEntryButErrNotFound(t *testing.T) {
+	// collectResultAppender's AddFast always returns ErrNotFound if we don't give it a next.
+	app := &collectResultAppender{}
+
+	sl := newScrapeLoop(context.Background(),
+		nil, nil, nil,
+		nopMutator,
+		nopMutator,
+		func() storage.Appender { return app },
+		nil,
+		0,
+		true,
+	)
+
+	fakeRef := uint64(1)
+	expValue := float64(1)
+	metric := `metric{n="1"} 1`
+	p := textparse.New([]byte(metric), "")
+
+	var lset labels.Labels
+	p.Next()
+	mets := p.Metric(&lset)
+	hash := lset.Hash()
+
+	// Create a fake entry in the cache
+	sl.cache.addRef(mets, fakeRef, lset, hash)
+	now := time.Now()
+
+	_, _, _, err := sl.append([]byte(metric), "", now)
+	testutil.Ok(t, err)
+
+	expected := []sample{
+		{
+			metric: lset,
+			t:      timestamp.FromTime(now),
+			v:      expValue,
+		},
+	}
+
+	testutil.Equals(t, expected, app.result)
+}
+
 func TestScrapeLoopAppendSampleLimit(t *testing.T) {
 	resApp := &collectResultAppender{}
 	app := &limitAppender{Appender: resApp, limit: 1}
@@ -1092,8 +1129,7 @@ func TestScrapeLoop_ChangingMetricString(t *testing.T) {
 	s := teststorage.New(t)
 	defer s.Close()
 
-	app, err := s.Appender()
-	testutil.Ok(t, err)
+	app := s.Appender()
 
 	capp := &collectResultAppender{next: app}
 
@@ -1108,7 +1144,7 @@ func TestScrapeLoop_ChangingMetricString(t *testing.T) {
 	)
 
 	now := time.Now()
-	_, _, _, err = sl.append([]byte(`metric_a{a="1",b="1"} 1`), "", now)
+	_, _, _, err := sl.append([]byte(`metric_a{a="1",b="1"} 1`), "", now)
 	testutil.Ok(t, err)
 
 	_, _, _, err = sl.append([]byte(`metric_a{b="1",a="1"} 2`), "", now.Add(time.Minute))
@@ -1273,8 +1309,8 @@ func (app *errorAppender) Add(lset labels.Labels, t int64, v float64) (uint64, e
 	}
 }
 
-func (app *errorAppender) AddFast(lset labels.Labels, ref uint64, t int64, v float64) error {
-	return app.collectResultAppender.AddFast(lset, ref, t, v)
+func (app *errorAppender) AddFast(ref uint64, t int64, v float64) error {
+	return app.collectResultAppender.AddFast(ref, t, v)
 }
 
 func TestScrapeLoopAppendGracefullyIfAmendOrOutOfOrderOrOutOfBounds(t *testing.T) {
@@ -1408,7 +1444,7 @@ func TestTargetScrapeScrapeCancel(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 
-	errc := make(chan error)
+	errc := make(chan error, 1)
 
 	go func() {
 		time.Sleep(1 * time.Second)
@@ -1421,8 +1457,9 @@ func TestTargetScrapeScrapeCancel(t *testing.T) {
 			errc <- errors.New("Expected error but got nil")
 		} else if ctx.Err() != context.Canceled {
 			errc <- errors.Errorf("Expected context cancellation error but got: %s", ctx.Err())
+		} else {
+			close(errc)
 		}
-		close(errc)
 	}()
 
 	select {
@@ -1497,8 +1534,7 @@ func TestScrapeLoop_RespectTimestamps(t *testing.T) {
 	s := teststorage.New(t)
 	defer s.Close()
 
-	app, err := s.Appender()
-	testutil.Ok(t, err)
+	app := s.Appender()
 
 	capp := &collectResultAppender{next: app}
 
@@ -1512,7 +1548,7 @@ func TestScrapeLoop_RespectTimestamps(t *testing.T) {
 	)
 
 	now := time.Now()
-	_, _, _, err = sl.append([]byte(`metric_a{a="1",b="1"} 1 0`), "", now)
+	_, _, _, err := sl.append([]byte(`metric_a{a="1",b="1"} 1 0`), "", now)
 	testutil.Ok(t, err)
 
 	want := []sample{
@@ -1529,8 +1565,7 @@ func TestScrapeLoop_DiscardTimestamps(t *testing.T) {
 	s := teststorage.New(t)
 	defer s.Close()
 
-	app, err := s.Appender()
-	testutil.Ok(t, err)
+	app := s.Appender()
 
 	capp := &collectResultAppender{next: app}
 
@@ -1544,7 +1579,7 @@ func TestScrapeLoop_DiscardTimestamps(t *testing.T) {
 	)
 
 	now := time.Now()
-	_, _, _, err = sl.append([]byte(`metric_a{a="1",b="1"} 1 0`), "", now)
+	_, _, _, err := sl.append([]byte(`metric_a{a="1",b="1"} 1 0`), "", now)
 	testutil.Ok(t, err)
 
 	want := []sample{
@@ -1561,8 +1596,7 @@ func TestScrapeLoopDiscardDuplicateLabels(t *testing.T) {
 	s := teststorage.New(t)
 	defer s.Close()
 
-	app, err := s.Appender()
-	testutil.Ok(t, err)
+	app := s.Appender()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	sl := newScrapeLoop(ctx,
@@ -1578,12 +1612,12 @@ func TestScrapeLoopDiscardDuplicateLabels(t *testing.T) {
 	defer cancel()
 
 	// We add a good and a bad metric to check that both are discarded.
-	_, _, _, err = sl.append([]byte("test_metric{le=\"500\"} 1\ntest_metric{le=\"600\",le=\"700\"} 1\n"), "", time.Time{})
+	_, _, _, err := sl.append([]byte("test_metric{le=\"500\"} 1\ntest_metric{le=\"600\",le=\"700\"} 1\n"), "", time.Time{})
 	testutil.NotOk(t, err)
 
 	q, err := s.Querier(ctx, time.Time{}.UnixNano(), 0)
 	testutil.Ok(t, err)
-	series, _, err := q.Select(&storage.SelectParams{}, labels.MustNewMatcher(labels.MatchRegexp, "__name__", ".*"))
+	series, _, err := q.Select(false, nil, labels.MustNewMatcher(labels.MatchRegexp, "__name__", ".*"))
 	testutil.Ok(t, err)
 	testutil.Equals(t, false, series.Next(), "series found in tsdb")
 
@@ -1593,45 +1627,80 @@ func TestScrapeLoopDiscardDuplicateLabels(t *testing.T) {
 
 	q, err = s.Querier(ctx, time.Time{}.UnixNano(), 0)
 	testutil.Ok(t, err)
-	series, _, err = q.Select(&storage.SelectParams{}, labels.MustNewMatcher(labels.MatchEqual, "le", "500"))
+	series, _, err = q.Select(false, nil, labels.MustNewMatcher(labels.MatchEqual, "le", "500"))
 	testutil.Ok(t, err)
 	testutil.Equals(t, true, series.Next(), "series not found in tsdb")
 	testutil.Equals(t, false, series.Next(), "more than one series found in tsdb")
 }
 
+func TestScrapeLoopDiscardUnnamedMetrics(t *testing.T) {
+	s := teststorage.New(t)
+	defer s.Close()
+
+	app := s.Appender()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	sl := newScrapeLoop(ctx,
+		&testScraper{},
+		nil, nil,
+		func(l labels.Labels) labels.Labels {
+			if l.Has("drop") {
+				return labels.Labels{}
+			}
+			return l
+		},
+		nopMutator,
+		func() storage.Appender { return app },
+		nil,
+		0,
+		true,
+	)
+	defer cancel()
+
+	_, _, _, err := sl.append([]byte("nok 1\nnok2{drop=\"drop\"} 1\n"), "", time.Time{})
+	testutil.NotOk(t, err)
+	testutil.Equals(t, errNameLabelMandatory, err)
+
+	q, err := s.Querier(ctx, time.Time{}.UnixNano(), 0)
+	testutil.Ok(t, err)
+	series, _, err := q.Select(false, nil, labels.MustNewMatcher(labels.MatchRegexp, "__name__", ".*"))
+	testutil.Ok(t, err)
+	testutil.Equals(t, false, series.Next(), "series found in tsdb")
+}
+
 func TestReusableConfig(t *testing.T) {
 	variants := []*config.ScrapeConfig{
-		&config.ScrapeConfig{
+		{
 			JobName:       "prometheus",
 			ScrapeTimeout: model.Duration(15 * time.Second),
 		},
-		&config.ScrapeConfig{
+		{
 			JobName:       "httpd",
 			ScrapeTimeout: model.Duration(15 * time.Second),
 		},
-		&config.ScrapeConfig{
+		{
 			JobName:       "prometheus",
 			ScrapeTimeout: model.Duration(5 * time.Second),
 		},
-		&config.ScrapeConfig{
+		{
 			JobName:     "prometheus",
 			MetricsPath: "/metrics",
 		},
-		&config.ScrapeConfig{
+		{
 			JobName:     "prometheus",
 			MetricsPath: "/metrics2",
 		},
-		&config.ScrapeConfig{
+		{
 			JobName:       "prometheus",
 			ScrapeTimeout: model.Duration(5 * time.Second),
 			MetricsPath:   "/metrics2",
 		},
-		&config.ScrapeConfig{
+		{
 			JobName:        "prometheus",
 			ScrapeInterval: model.Duration(5 * time.Second),
 			MetricsPath:    "/metrics2",
 		},
-		&config.ScrapeConfig{
+		{
 			JobName:        "prometheus",
 			ScrapeInterval: model.Duration(5 * time.Second),
 			SampleLimit:    1000,
@@ -1640,18 +1709,18 @@ func TestReusableConfig(t *testing.T) {
 	}
 
 	match := [][]int{
-		[]int{0, 2},
-		[]int{4, 5},
-		[]int{4, 6},
-		[]int{4, 7},
-		[]int{5, 6},
-		[]int{5, 7},
-		[]int{6, 7},
+		{0, 2},
+		{4, 5},
+		{4, 6},
+		{4, 7},
+		{5, 6},
+		{5, 7},
+		{6, 7},
 	}
 	noMatch := [][]int{
-		[]int{1, 2},
-		[]int{0, 4},
-		[]int{3, 4},
+		{1, 2},
+		{0, 4},
+		{3, 4},
 	}
 
 	for i, m := range match {
@@ -1783,4 +1852,79 @@ func TestReuseScrapeCache(t *testing.T) {
 			testutil.Assert(t, initCacheAddr[fp] == newCacheAddr, "step %d: reloading the exact config invalidates the cache", i)
 		}
 	}
+}
+
+func TestScrapeAddFast(t *testing.T) {
+	s := teststorage.New(t)
+	defer s.Close()
+
+	app := s.Appender()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	sl := newScrapeLoop(ctx,
+		&testScraper{},
+		nil, nil,
+		nopMutator,
+		nopMutator,
+		func() storage.Appender { return app },
+		nil,
+		0,
+		true,
+	)
+	defer cancel()
+
+	_, _, _, err := sl.append([]byte("up 1\n"), "", time.Time{})
+	testutil.Ok(t, err)
+
+	// Poison the cache. There is just one entry, and one series in the
+	// storage. Changing the ref will create a 'not found' error.
+	for _, v := range sl.getCache().series {
+		v.ref++
+	}
+
+	_, _, _, err = sl.append([]byte("up 1\n"), "", time.Time{}.Add(time.Second))
+	testutil.Ok(t, err)
+}
+
+func TestReuseCacheRace(t *testing.T) {
+	var (
+		app = &nopAppendable{}
+		cfg = &config.ScrapeConfig{
+			JobName:        "Prometheus",
+			ScrapeTimeout:  model.Duration(5 * time.Second),
+			ScrapeInterval: model.Duration(5 * time.Second),
+			MetricsPath:    "/metrics",
+		}
+		sp, _ = newScrapePool(cfg, app, 0, nil)
+		t1    = &Target{
+			discoveredLabels: labels.Labels{
+				labels.Label{
+					Name:  "labelNew",
+					Value: "nameNew",
+				},
+			},
+		}
+	)
+	sp.sync([]*Target{t1})
+
+	start := time.Now()
+	for i := uint(1); i > 0; i++ {
+		if time.Since(start) > 5*time.Second {
+			break
+		}
+		sp.reload(&config.ScrapeConfig{
+			JobName:        "Prometheus",
+			ScrapeTimeout:  model.Duration(1 * time.Millisecond),
+			ScrapeInterval: model.Duration(1 * time.Millisecond),
+			MetricsPath:    "/metrics",
+			SampleLimit:    i,
+		})
+	}
+}
+
+func TestCheckAddError(t *testing.T) {
+	var appErrs appendErrors
+	sl := scrapeLoop{l: log.NewNopLogger()}
+	sl.checkAddError(nil, nil, nil, storage.ErrOutOfOrderSample, nil, &appErrs)
+	testutil.Equals(t, 1, appErrs.numOutOfOrder)
 }

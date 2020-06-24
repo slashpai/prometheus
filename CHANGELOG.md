@@ -1,3 +1,78 @@
+## 2.19.1 / 2020-06-18
+
+* [BUGFIX] TSDB: Fix m-map file truncation leading to unsequential files. #7414
+
+## 2.19.0 / 2020-06-09
+
+* [FEATURE] TSDB: Memory-map full chunks of Head (in-memory) block from disk. This reduces memory footprint and makes restarts faster. #6679
+* [ENHANCEMENT] Discovery: Added discovery support for Triton global zones. #7250
+* [ENHANCEMENT] Increased alert resend delay to be more tolerant towards failures. #7228
+* [ENHANCEMENT] Remote Read: Added `prometheus_remote_storage_remote_read_queries_total` counter to count total number of remote read queries. #7328
+* [ENHANCEMEMT] Added time range parameters for label names and label values API. #7288
+* [ENHANCEMENT] TSDB: Reduced contention in isolation for high load. #7332 
+* [BUGFIX] PromQL: Eliminated collision while checking for duplicate labels. #7058 
+* [BUGFIX] React UI: Don't null out data when clicking on the current tab. #7243
+* [BUGFIX] PromQL: Correctly track number of samples for a query. #7307
+* [BUGFIX] PromQL: Return NaN when histogram buckets have 0 observations. #7318
+* [BUGFIX] TSDB: Fix incorrect query results when using Prometheus with remote reads configured #7361
+
+## 2.18.1 / 2020-05-07
+
+* [BUGFIX] TSDB: Fixed snapshot API. #7217
+
+## 2.18.0 / 2020-05-05
+
+* [CHANGE] Federation: Only use local TSDB for federation (ignore remote read). #7096
+* [CHANGE] Rules: `rule_evaluations_total` and `rule_evaluation_failures_total` have a `rule_group` label now. #7094
+* [FEATURE] Tracing: Added experimental Jaeger support #7148
+* [ENHANCEMENT] TSDB: Significantly reduce WAL size kept around after a block cut. #7098
+* [ENHANCEMENT] Discovery: Add `architecture` meta label for EC2. #7000
+* [BUGFIX] UI: Fixed wrong MinTime reported by /status. #7182
+* [BUGFIX] React UI: Fixed multiselect legend on OSX. #6880
+* [BUGFIX] Remote Write: Fixed blocked resharding edge case. #7122
+* [BUGFIX] Remote Write: Fixed remote write not updating on relabel configs change. #7073
+
+
+## 2.17.2 / 2020-04-20
+
+* [BUGFIX] Federation: Register federation metrics #7081
+* [BUGFIX] PromQL: Fix panic in parser error handling #7132
+* [BUGFIX] Rules: Fix reloads hanging when deleting a rule group that is being evaluated #7138
+* [BUGFIX] TSDB: Fix a memory leak when prometheus starts with an empty TSDB WAL #7135
+* [BUGFIX] TSDB: Make isolation more robust to panics in web handlers #7129 #7136
+
+## 2.17.1 / 2020-03-26
+
+* [BUGFIX] TSDB: Fix query performance regression that increased memory and CPU usage #7051
+
+## 2.17.0 / 2020-03-24
+
+This release implements isolation in TSDB. API queries and recording rules are
+guaranteed to only see full scrapes and full recording rules. This comes with a
+certain overhead in resource usage. Depending on the situation, there might be
+some increase in memory usage, CPU usage, or query latency.
+
+* [FEATURE] TSDB: Support isolation #6841
+* [ENHANCEMENT] PromQL: Allow more keywords as metric names #6933
+* [ENHANCEMENT] React UI: Add normalization of localhost URLs in targets page #6794
+* [ENHANCEMENT] Remote read: Read from remote storage concurrently #6770
+* [ENHANCEMENT] Rules: Mark deleted rule series as stale after a reload #6745
+* [ENHANCEMENT] Scrape: Log scrape append failures as debug rather than warn #6852
+* [ENHANCEMENT] TSDB: Improve query performance for queries that partially hit the head #6676
+* [ENHANCEMENT] Consul SD: Expose service health as meta label #5313
+* [ENHANCEMENT] EC2 SD: Expose EC2 instance lifecycle as meta label #6914
+* [ENHANCEMENT] Kubernetes SD: Expose service type as meta label for K8s service role #6684
+* [ENHANCEMENT] Kubernetes SD: Expose label_selector and field_selector #6807
+* [ENHANCEMENT] Openstack SD: Expose hypervisor id as meta label #6962
+* [BUGFIX] PromQL: Do not escape HTML-like chars in query log #6834 #6795
+* [BUGFIX] React UI: Fix data table matrix values #6896
+* [BUGFIX] React UI: Fix new targets page not loading when using non-ASCII characters #6892
+* [BUGFIX] Remote read: Fix duplication of metrics read from remote storage with external labels #6967 #7018
+* [BUGFIX] Remote write: Register WAL watcher and live reader metrics for all remotes, not just the first one #6998
+* [BUGFIX] Scrape: Prevent removal of metric names upon relabeling #6891
+* [BUGFIX] Scrape: Fix 'superfluous response.WriteHeader call' errors when scrape fails under some circonstances #6986
+* [BUGFIX] Scrape: Fix crash when reloads are separated by two scrape intervals #7011
+
 ## 2.16.0 / 2020-02-13
 
 * [FEATURE] React UI: Support local timezone on /graph #6692

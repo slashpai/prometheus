@@ -30,7 +30,12 @@ const (
 )
 
 func BenchmarkPostingsForMatchers(b *testing.B) {
-	h, err := NewHead(nil, nil, nil, 1000, DefaultStripeSize)
+	chunkDir, err := ioutil.TempDir("", "chunk_dir")
+	testutil.Ok(b, err)
+	defer func() {
+		testutil.Ok(b, os.RemoveAll(chunkDir))
+	}()
+	h, err := NewHead(nil, nil, nil, 1000, chunkDir, nil, DefaultStripeSize, nil)
 	testutil.Ok(b, err)
 	defer func() {
 		testutil.Ok(b, h.Close())
@@ -126,7 +131,12 @@ func benchmarkPostingsForMatchers(b *testing.B, ir IndexReader) {
 }
 
 func BenchmarkQuerierSelect(b *testing.B) {
-	h, err := NewHead(nil, nil, nil, 1000, DefaultStripeSize)
+	chunkDir, err := ioutil.TempDir("", "chunk_dir")
+	testutil.Ok(b, err)
+	defer func() {
+		testutil.Ok(b, os.RemoveAll(chunkDir))
+	}()
+	h, err := NewHead(nil, nil, nil, 1000, chunkDir, nil, DefaultStripeSize, nil)
 	testutil.Ok(b, err)
 	defer h.Close()
 	app := h.Appender()
@@ -145,12 +155,7 @@ func BenchmarkQuerierSelect(b *testing.B) {
 
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {
-					var ss SeriesSet
-					if sorted {
-						ss, err = q.SelectSorted(matcher)
-					} else {
-						ss, err = q.Select(matcher)
-					}
+					ss, _, err := q.Select(sorted, nil, matcher)
 					testutil.Ok(b, err)
 					for ss.Next() {
 					}

@@ -28,6 +28,7 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/prometheus/prometheus/pkg/labels"
+	"github.com/prometheus/prometheus/storage"
 	"github.com/prometheus/prometheus/tsdb/chunks"
 	"github.com/prometheus/prometheus/tsdb/fileutil"
 	"github.com/prometheus/prometheus/tsdb/tsdbutil"
@@ -179,7 +180,7 @@ func TestCorruptedChunk(t *testing.T) {
 			}()
 
 			series := newSeries(map[string]string{"a": "b"}, []tsdbutil.Sample{sample{1, 1}})
-			blockDir := createBlock(t, tmpdir, []Series{series})
+			blockDir := createBlock(t, tmpdir, []storage.Series{series})
 			files, err := sequenceFiles(chunkDir(blockDir))
 			testutil.Ok(t, err)
 			testutil.Assert(t, len(files) > 0, "No chunk created.")
@@ -202,8 +203,9 @@ func TestCorruptedChunk(t *testing.T) {
 			querier, err := NewBlockQuerier(b, 0, 1)
 			testutil.Ok(t, err)
 			defer func() { testutil.Ok(t, querier.Close()) }()
-			set, err := querier.Select(labels.MustNewMatcher(labels.MatchEqual, "a", "b"))
+			set, ws, err := querier.Select(false, nil, labels.MustNewMatcher(labels.MatchEqual, "a", "b"))
 			testutil.Ok(t, err)
+			testutil.Equals(t, 0, len(ws))
 
 			// Check query err.
 			testutil.Equals(t, false, set.Next())
@@ -290,20 +292,25 @@ func TestReadIndexFormatV1(t *testing.T) {
 	q, err := NewBlockQuerier(block, 0, 1000)
 	testutil.Ok(t, err)
 	testutil.Equals(t, query(t, q, labels.MustNewMatcher(labels.MatchEqual, "foo", "bar")),
-		map[string][]tsdbutil.Sample{`{foo="bar"}`: []tsdbutil.Sample{sample{t: 1, v: 2}}})
+		map[string][]tsdbutil.Sample{`{foo="bar"}`: {sample{t: 1, v: 2}}})
 
 	q, err = NewBlockQuerier(block, 0, 1000)
 	testutil.Ok(t, err)
 	testutil.Equals(t, query(t, q, labels.MustNewMatcher(labels.MatchNotRegexp, "foo", "^.?$")),
 		map[string][]tsdbutil.Sample{
-			`{foo="bar"}`: []tsdbutil.Sample{sample{t: 1, v: 2}},
-			`{foo="baz"}`: []tsdbutil.Sample{sample{t: 3, v: 4}},
+			`{foo="bar"}`: {sample{t: 1, v: 2}},
+			`{foo="baz"}`: {sample{t: 3, v: 4}},
 		})
 }
 
 // createBlock creates a block with given set of series and returns its dir.
-func createBlock(tb testing.TB, dir string, series []Series) string {
-	return createBlockFromHead(tb, dir, createHead(tb, series))
+func createBlock(tb testing.TB, dir string, series []storage.Series) string {
+	chunkDir, err := ioutil.TempDir("", "chunk_dir")
+	testutil.Ok(tb, err)
+	defer func() { testutil.Ok(tb, os.RemoveAll(chunkDir)) }()
+	head := createHead(tb, series, chunkDir)
+	defer func() { testutil.Ok(tb, head.Close()) }()
+	return createBlockFromHead(tb, dir, head)
 }
 
 func createBlockFromHead(tb testing.TB, dir string, head *Head) string {
@@ -319,10 +326,9 @@ func createBlockFromHead(tb testing.TB, dir string, head *Head) string {
 	return filepath.Join(dir, ulid.String())
 }
 
-func createHead(tb testing.TB, series []Series) *Head {
-	head, err := NewHead(nil, nil, nil, 2*60*60*1000, DefaultStripeSize)
+func createHead(tb testing.TB, series []storage.Series, chunkDir string) *Head {
+	head, err := NewHead(nil, nil, nil, 2*60*60*1000, chunkDir, nil, DefaultStripeSize, nil)
 	testutil.Ok(tb, err)
-	defer head.Close()
 
 	app := head.Appender()
 	for _, s := range series {
@@ -352,12 +358,12 @@ const (
 )
 
 // genSeries generates series with a given number of labels and values.
-func genSeries(totalSeries, labelCount int, mint, maxt int64) []Series {
+func genSeries(totalSeries, labelCount int, mint, maxt int64) []storage.Series {
 	if totalSeries == 0 || labelCount == 0 {
 		return nil
 	}
 
-	series := make([]Series, totalSeries)
+	series := make([]storage.Series, totalSeries)
 
 	for i := 0; i < totalSeries; i++ {
 		lbls := make(map[string]string, labelCount)
@@ -375,12 +381,12 @@ func genSeries(totalSeries, labelCount int, mint, maxt int64) []Series {
 }
 
 // populateSeries generates series from given labels, mint and maxt.
-func populateSeries(lbls []map[string]string, mint, maxt int64) []Series {
+func populateSeries(lbls []map[string]string, mint, maxt int64) []storage.Series {
 	if len(lbls) == 0 {
 		return nil
 	}
 
-	series := make([]Series, 0, len(lbls))
+	series := make([]storage.Series, 0, len(lbls))
 	for _, lbl := range lbls {
 		if len(lbl) == 0 {
 			continue
