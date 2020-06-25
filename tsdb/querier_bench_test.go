@@ -30,7 +30,12 @@ const (
 )
 
 func BenchmarkPostingsForMatchers(b *testing.B) {
-	h, err := NewHead(nil, nil, nil, 1000)
+	chunkDir, err := ioutil.TempDir("", "chunk_dir")
+	testutil.Ok(b, err)
+	defer func() {
+		testutil.Ok(b, os.RemoveAll(chunkDir))
+	}()
+	h, err := NewHead(nil, nil, nil, 1000, chunkDir, nil, DefaultStripeSize, nil)
 	testutil.Ok(b, err)
 	defer func() {
 		testutil.Ok(b, h.Close())
@@ -126,7 +131,12 @@ func benchmarkPostingsForMatchers(b *testing.B, ir IndexReader) {
 }
 
 func BenchmarkQuerierSelect(b *testing.B) {
-	h, err := NewHead(nil, nil, nil, 1000)
+	chunkDir, err := ioutil.TempDir("", "chunk_dir")
+	testutil.Ok(b, err)
+	defer func() {
+		testutil.Ok(b, os.RemoveAll(chunkDir))
+	}()
+	h, err := NewHead(nil, nil, nil, 1000, chunkDir, nil, DefaultStripeSize, nil)
 	testutil.Ok(b, err)
 	defer h.Close()
 	app := h.Appender()
@@ -136,7 +146,7 @@ func BenchmarkQuerierSelect(b *testing.B) {
 	}
 	testutil.Ok(b, app.Commit())
 
-	bench := func(b *testing.B, br BlockReader) {
+	bench := func(b *testing.B, br BlockReader, sorted bool) {
 		matcher := labels.MustNewMatcher(labels.MatchEqual, "foo", "bar")
 		for s := 1; s <= numSeries; s *= 10 {
 			b.Run(fmt.Sprintf("%dof%d", s, numSeries), func(b *testing.B) {
@@ -145,7 +155,7 @@ func BenchmarkQuerierSelect(b *testing.B) {
 
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {
-					ss, err := q.Select(matcher)
+					ss, _, err := q.Select(sorted, nil, matcher)
 					testutil.Ok(b, err)
 					for ss.Next() {
 					}
@@ -157,7 +167,10 @@ func BenchmarkQuerierSelect(b *testing.B) {
 	}
 
 	b.Run("Head", func(b *testing.B) {
-		bench(b, h)
+		bench(b, h, false)
+	})
+	b.Run("SortedHead", func(b *testing.B) {
+		bench(b, h, true)
 	})
 
 	tmpdir, err := ioutil.TempDir("", "test_benchquerierselect")
@@ -174,6 +187,6 @@ func BenchmarkQuerierSelect(b *testing.B) {
 	}()
 
 	b.Run("Block", func(b *testing.B) {
-		bench(b, block)
+		bench(b, block, false)
 	})
 }

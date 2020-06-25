@@ -19,7 +19,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/prometheus/client_golang/prometheus"
 	common_config "github.com/prometheus/common/config"
 	"github.com/prometheus/prometheus/config"
 	"github.com/prometheus/prometheus/util/testutil"
@@ -30,7 +29,7 @@ func TestStorageLifecycle(t *testing.T) {
 	testutil.Ok(t, err)
 	defer os.RemoveAll(dir)
 
-	s := NewStorage(nil, prometheus.DefaultRegisterer, nil, dir, defaultFlushDeadline)
+	s := NewStorage(nil, nil, nil, dir, defaultFlushDeadline)
 	conf := &config.Config{
 		GlobalConfig: config.DefaultGlobalConfig,
 		RemoteWriteConfigs: []*config.RemoteWriteConfig{
@@ -52,7 +51,7 @@ func TestStorageLifecycle(t *testing.T) {
 		},
 	}
 
-	s.ApplyConfig(conf)
+	testutil.Ok(t, s.ApplyConfig(conf))
 
 	// make sure remote write has a queue.
 	testutil.Equals(t, 1, len(s.rws.queues))
@@ -69,18 +68,18 @@ func TestUpdateRemoteReadConfigs(t *testing.T) {
 	testutil.Ok(t, err)
 	defer os.RemoveAll(dir)
 
-	s := NewStorage(nil, prometheus.DefaultRegisterer, nil, dir, defaultFlushDeadline)
+	s := NewStorage(nil, nil, nil, dir, defaultFlushDeadline)
 
 	conf := &config.Config{
 		GlobalConfig: config.GlobalConfig{},
 	}
-	s.ApplyConfig(conf)
+	testutil.Ok(t, s.ApplyConfig(conf))
 	testutil.Equals(t, 0, len(s.queryables))
 
 	conf.RemoteReadConfigs = []*config.RemoteReadConfig{
 		&config.DefaultRemoteReadConfig,
 	}
-	s.ApplyConfig(conf)
+	testutil.Ok(t, s.ApplyConfig(conf))
 	testutil.Equals(t, 1, len(s.queryables))
 
 	err = s.Close()

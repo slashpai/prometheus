@@ -43,7 +43,7 @@ The directory structure of a Prometheus server's data directory will look someth
 ```
 
 
-Note that a limitation of the local storage is that it is not clustered or replicated. Thus, it is not arbitrarily scalable or durable in the face of disk or node outages and should be treated as you would any other kind of single node database. Using RAID for disk availiablity, [snapshots](https://prometheus.io/docs/prometheus/latest/querying/api/#snapshot) for backups, capacity planning, etc, is recommended for improved durability. With proper storage durability and planning storing years of data in the local storage is possible.
+Note that a limitation of the local storage is that it is not clustered or replicated. Thus, it is not arbitrarily scalable or durable in the face of disk or node outages and should be treated as you would any other kind of single node database. Using RAID for disk availability, [snapshots](https://prometheus.io/docs/prometheus/latest/querying/api/#snapshot) for backups, capacity planning, etc, is recommended for improved durability. With proper storage durability and planning storing years of data in the local storage is possible.
 
 Alternatively, external storage may be used via the [remote read/write APIs](https://prometheus.io/docs/operating/integrations/#remote-endpoints-and-storage). Careful evaluation is required for these systems as they vary greatly in durability, performance, and efficiency.
 
@@ -61,7 +61,7 @@ Prometheus has several flags that allow configuring the local storage. The most 
 
 * `--storage.tsdb.path`: This determines where Prometheus writes its database. Defaults to `data/`.
 * `--storage.tsdb.retention.time`: This determines when to remove old data. Defaults to `15d`. Overrides `storage.tsdb.retention` if this flag is set to anything other than default.
-* `--storage.tsdb.retention.size`: [EXPERIMENTAL] This determines the maximum number of bytes that storage blocks can use (note that this does not include the WAL size, which can be substantial). The oldest data will be removed first. Defaults to `0` or disabled. This flag is experimental and can be changed in future releases. Units supported: KB, MB, GB, PB. Ex: "512MB"
+* `--storage.tsdb.retention.size`: [EXPERIMENTAL] This determines the maximum number of bytes that storage blocks can use (note that this does not include the WAL size, which can be substantial). The oldest data will be removed first. Defaults to `0` or disabled. This flag is experimental and can be changed in future releases. Units supported: B, KB, MB, GB, TB, PB, EB. Ex: "512MB"
 * `--storage.tsdb.retention`: This flag has been deprecated in favour of `storage.tsdb.retention.time`.
 * `--storage.tsdb.wal-compression`: This flag enables compression of the write-ahead log (WAL). Depending on your data, you can expect the WAL size to be halved with little extra cpu load. Note that if you enable this flag and subsequently downgrade Prometheus to a version below 2.11.0 you will need to delete your WAL as it will be unreadable.
 
@@ -77,7 +77,7 @@ If your local storage becomes corrupted for whatever reason, your best bet is to
 
 If both time and size retention policies are specified, whichever policy triggers first will be used at that instant.
 
-Expired block cleanup happens on a background schedule. It may take up to two hours remove expired blocks. Expired blocks must be fully expired before they are cleaned up.
+Expired block cleanup happens on a background schedule. It may take up to two hours to remove expired blocks. Expired blocks must be fully expired before they are cleaned up.
 
 ## Remote storage integrations
 
