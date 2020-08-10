@@ -1,4 +1,4 @@
-FROM registry.svc.ci.openshift.org/openshift/release:golang-1.13 AS builder
+FROM registry.svc.ci.openshift.org/openshift/release:golang-1.14 AS builder
 WORKDIR /go/src/github.com/prometheus/prometheus
 COPY . .
 # NOTE(spasquie): the 'build' target regenerates the ReactJS code and the Go
@@ -13,8 +13,8 @@ FROM  registry.svc.ci.openshift.org/openshift/origin-v4.0:base
 LABEL io.k8s.display-name="OpenShift Prometheus" \
       io.k8s.description="The Prometheus monitoring system and time series database." \
       io.openshift.tags="prometheus,monitoring" \
-      maintainer="OpenShift Development <dev@lists.openshift.redhat.com>" \
-      version="v2.14.0"
+      summary="The Prometheus monitoring system and time series database." \
+      maintainer="OpenShift Monitoring Team <team-monitoring@redhat.com>"
 
 ARG FROM_DIRECTORY=/go/src/github.com/prometheus/prometheus
 COPY --from=builder ${FROM_DIRECTORY}/prometheus                            /bin/prometheus
