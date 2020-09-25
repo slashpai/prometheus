@@ -1,8 +1,6 @@
 component: "Monitoring"
 
 reviewers:
-- brancz
-- krasi-georgiev
 - LiliC
 - paulfantom
 - pgier
@@ -10,10 +8,12 @@ reviewers:
 - simonpasquier
 
 approvers:
-- brancz
-- krasi-georgiev
 - LiliC
 - paulfantom
 - pgier
 - s-urbaniak
 - simonpasquier
+
+emeritus_approvers:
+- brancz
+- krasi-georgiev
