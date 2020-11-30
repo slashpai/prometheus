@@ -37,6 +37,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/route"
+
 	"github.com/prometheus/prometheus/config"
 	"github.com/prometheus/prometheus/pkg/gate"
 	"github.com/prometheus/prometheus/pkg/labels"
@@ -602,10 +603,16 @@ func (api *API) series(r *http.Request) (result apiFuncResult) {
 		q.Close()
 	}
 
+	hints := &storage.SelectHints{
+		Start: timestamp.FromTime(start),
+		End:   timestamp.FromTime(end),
+		Func:  "series", // There is no series function, this token is used for lookups that don't need samples.
+	}
+
 	var sets []storage.SeriesSet
 	for _, mset := range matcherSets {
 		// We need to sort this select results to merge (deduplicate) the series sets later.
-		s := q.Select(true, nil, mset...)
+		s := q.Select(true, hints, mset...)
 		sets = append(sets, s)
 	}
 
@@ -1471,9 +1478,9 @@ func (api *API) snapshot(r *http.Request) apiFuncResult {
 
 	var (
 		snapdir = filepath.Join(api.dbDir, "snapshots")
-		name    = fmt.Sprintf("%s-%x",
+		name    = fmt.Sprintf("%s-%016x",
 			time.Now().UTC().Format("20060102T150405Z0700"),
-			rand.Int())
+			rand.Int63())
 		dir = filepath.Join(snapdir, name)
 	)
 	if err := os.MkdirAll(dir, 0777); err != nil {
