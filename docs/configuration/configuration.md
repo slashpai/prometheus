@@ -577,6 +577,16 @@ role: <string>
 # tasks and services that don't have published ports.
 [ port: <int> | default = 80 ]
 
+# Optional filters to limit the discovery process to a subset of available
+# resources.
+# The available filters are listed in the upstream documentation:
+# Services: https://docs.docker.com/engine/api/v1.40/#operation/ServiceList
+# Tasks: https://docs.docker.com/engine/api/v1.40/#operation/TaskList
+# Nodes: https://docs.docker.com/engine/api/v1.40/#operation/NodeList
+[ filters:
+  [ - name: <string>
+      values: <string>, [...] ]
+
 # The time after which the droplets are refreshed.
 [ refresh_interval: <duration> | default = 60s ]
 
@@ -597,6 +607,11 @@ basic_auth:
 # Optional bearer token file authentication information.
 [ bearer_token_file: <filename> ]
 ```
+
+The [relabeling phase](#relabel_config) is the preferred and more powerful
+way to filter tasks, services or nodes. For users with thousands of tasks it
+can be more efficient to use the Swarm API directly which has basic support for
+filtering nodes (using `filters`).
 
 See [this example Prometheus configuration file](/documentation/examples/prometheus-dockerswarm.yml)
 for a detailed example of configuring Prometheus for Docker Swarm.
@@ -1741,20 +1756,28 @@ queue_config:
   # samples from the WAL. It is recommended to have enough capacity in each
   # shard to buffer several requests to keep throughput up while processing
   # occasional slow remote requests.
-  [ capacity: <int> | default = 500 ]
+  [ capacity: <int> | default = 2500 ]
   # Maximum number of shards, i.e. amount of concurrency.
-  [ max_shards: <int> | default = 1000 ]
+  [ max_shards: <int> | default = 200 ]
   # Minimum number of shards, i.e. amount of concurrency.
   [ min_shards: <int> | default = 1 ]
   # Maximum number of samples per send.
-  [ max_samples_per_send: <int> | default = 100]
+  [ max_samples_per_send: <int> | default = 500]
   # Maximum time a sample will wait in buffer.
   [ batch_send_deadline: <duration> | default = 5s ]
   # Initial retry delay. Gets doubled for every retry.
   [ min_backoff: <duration> | default = 30ms ]
   # Maximum retry delay.
   [ max_backoff: <duration> | default = 100ms ]
-
+# Configures the sending of series metadata to remote storage.
+# Metadata configuration is subject to change at any point
+# or be removed in future releases.
+metadata_config:
+  # Whether metric metadata is sent to remote storage or not.
+  [ send: <boolean> | default = true ]
+  # How frequently metric metadata is sent to remote storage.
+  [ send_interval: <duration> | default = 1m ]
+  
 ```
 
 There is a list of
