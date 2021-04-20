@@ -37,7 +37,7 @@ import (
 	config_util "github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/version"
-	toolkit_web "github.com/prometheus/exporter-toolkit/web"
+	"github.com/prometheus/exporter-toolkit/web"
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/prometheus/prometheus/config"
@@ -48,7 +48,7 @@ import (
 )
 
 func main() {
-	app := kingpin.New(filepath.Base(os.Args[0]), "Tooling for the Prometheus monitoring system.")
+	app := kingpin.New(filepath.Base(os.Args[0]), "Tooling for the Prometheus monitoring system.").UsageWriter(os.Stdout)
 	app.Version(version.Print("promtool"))
 	app.HelpFlag.Short('h')
 
@@ -124,6 +124,7 @@ func main() {
 	tsdbBenchWriteCmd := tsdbBenchCmd.Command("write", "Run a write performance benchmark.")
 	benchWriteOutPath := tsdbBenchWriteCmd.Flag("out", "Set the output path.").Default("benchout").String()
 	benchWriteNumMetrics := tsdbBenchWriteCmd.Flag("metrics", "Number of metrics to read.").Default("10000").Int()
+	benchWriteNumScrapes := tsdbBenchWriteCmd.Flag("scrapes", "Number of scrapes to simulate.").Default("3000").Int()
 	benchSamplesFile := tsdbBenchWriteCmd.Arg("file", "Input file with samples data, default is ("+filepath.Join("..", "..", "tsdb", "testdata", "20kseries.json")+").").Default(filepath.Join("..", "..", "tsdb", "testdata", "20kseries.json")).String()
 
 	tsdbAnalyzeCmd := tsdbCmd.Command("analyze", "Analyze churn, label pair cardinality.")
@@ -195,7 +196,7 @@ func main() {
 		os.Exit(RulesUnitTest(*testRulesFiles...))
 
 	case tsdbBenchWriteCmd.FullCommand():
-		os.Exit(checkErr(benchmarkWrite(*benchWriteOutPath, *benchSamplesFile, *benchWriteNumMetrics)))
+		os.Exit(checkErr(benchmarkWrite(*benchWriteOutPath, *benchSamplesFile, *benchWriteNumMetrics, *benchWriteNumScrapes)))
 
 	case tsdbAnalyzeCmd.FullCommand():
 		os.Exit(checkErr(analyzeBlock(*analyzePath, *analyzeBlockID, *analyzeLimit)))
@@ -207,7 +208,7 @@ func main() {
 		os.Exit(checkErr(dumpSamples(*dumpPath, *dumpMinTime, *dumpMaxTime)))
 	//TODO(aSquare14): Work on adding support for custom block size.
 	case openMetricsImportCmd.FullCommand():
-		os.Exit(checkErr(backfillOpenMetrics(*importFilePath, *importDBPath, *importHumanReadable)))
+		os.Exit(backfillOpenMetrics(*importFilePath, *importDBPath, *importHumanReadable))
 	}
 }
 
@@ -249,7 +250,7 @@ func CheckWebConfig(files ...string) int {
 	failed := false
 
 	for _, f := range files {
-		if err := toolkit_web.Validate(f); err != nil {
+		if err := web.Validate(f); err != nil {
 			fmt.Fprintln(os.Stderr, f, "FAILED:", err)
 			failed = true
 			continue
@@ -387,7 +388,7 @@ func checkRules(filename string) (int, []error) {
 
 	dRules := checkDuplicates(rgs.Groups)
 	if len(dRules) != 0 {
-		fmt.Printf("%d duplicate rules(s) found.\n", len(dRules))
+		fmt.Printf("%d duplicate rule(s) found.\n", len(dRules))
 		for _, n := range dRules {
 			fmt.Printf("Metric: %s\nLabel(s):\n", n.metric)
 			for i, l := range n.label {
@@ -497,8 +498,7 @@ func QueryInstant(url *url.URL, query, evalTime string, p printer) int {
 	val, _, err := api.Query(ctx, query, eTime) // Ignoring warnings for now.
 	cancel()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "query error:", err)
-		return 1
+		return handleAPIError(err)
 	}
 
 	p.printValue(val)
@@ -572,8 +572,7 @@ func QueryRange(url *url.URL, headers map[string]string, query, start, end strin
 	cancel()
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "query error:", err)
-		return 1
+		return handleAPIError(err)
 	}
 
 	p.printValue(val)
@@ -609,8 +608,7 @@ func QuerySeries(url *url.URL, matchers []string, start, end string, p printer) 
 	cancel()
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "query error:", err)
-		return 1
+		return handleAPIError(err)
 	}
 
 	p.printSeries(val)
@@ -642,20 +640,29 @@ func QueryLabels(url *url.URL, name string, start, end string, p printer) int {
 	// Run query against client.
 	api := v1.NewAPI(c)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	val, warn, err := api.LabelValues(ctx, name, stime, etime)
+	val, warn, err := api.LabelValues(ctx, name, []string{}, stime, etime)
 	cancel()
 
 	for _, v := range warn {
 		fmt.Fprintln(os.Stderr, "query warning:", v)
 	}
-
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "query error:", err)
-		return 1
+		return handleAPIError(err)
 	}
 
 	p.printLabelValues(val)
 	return 0
+}
+
+func handleAPIError(err error) int {
+	var apiErr *v1.Error
+	if errors.As(err, &apiErr) && apiErr.Detail != "" {
+		fmt.Fprintf(os.Stderr, "query error: %v (detail: %s)\n", apiErr, strings.TrimSpace(apiErr.Detail))
+	} else {
+		fmt.Fprintln(os.Stderr, "query error:", err)
+	}
+
+	return 1
 }
 
 func parseStartTimeAndEndTime(start, end string) (time.Time, time.Time, error) {
