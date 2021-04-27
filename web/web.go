@@ -50,7 +50,7 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/route"
 	"github.com/prometheus/common/server"
-	https "github.com/prometheus/exporter-toolkit/web"
+	toolkit_web "github.com/prometheus/exporter-toolkit/web"
 	"go.uber.org/atomic"
 	"golang.org/x/net/netutil"
 
@@ -174,14 +174,15 @@ type Handler struct {
 	gatherer prometheus.Gatherer
 	metrics  *metrics
 
-	scrapeManager *scrape.Manager
-	ruleManager   *rules.Manager
-	queryEngine   *promql.Engine
-	lookbackDelta time.Duration
-	context       context.Context
-	storage       storage.Storage
-	localStorage  LocalStorage
-	notifier      *notifier.Manager
+	scrapeManager   *scrape.Manager
+	ruleManager     *rules.Manager
+	queryEngine     *promql.Engine
+	lookbackDelta   time.Duration
+	context         context.Context
+	storage         storage.Storage
+	localStorage    LocalStorage
+	exemplarStorage storage.ExemplarQueryable
+	notifier        *notifier.Manager
 
 	apiV1 *api_v1.API
 
@@ -220,6 +221,7 @@ type Options struct {
 	TSDBMaxBytes          units.Base2Bytes
 	LocalStorage          LocalStorage
 	Storage               storage.Storage
+	ExemplarStorage       storage.ExemplarQueryable
 	QueryEngine           *promql.Engine
 	LookbackDelta         time.Duration
 	ScrapeManager         *scrape.Manager
@@ -244,6 +246,7 @@ type Options struct {
 	RemoteReadSampleLimit      int
 	RemoteReadConcurrencyLimit int
 	RemoteReadBytesInFrame     int
+	RemoteWriteReceiver        bool
 
 	Gatherer   prometheus.Gatherer
 	Registerer prometheus.Registerer
@@ -280,14 +283,15 @@ func New(logger log.Logger, o *Options) *Handler {
 		cwd:         cwd,
 		flagsMap:    o.Flags,
 
-		context:       o.Context,
-		scrapeManager: o.ScrapeManager,
-		ruleManager:   o.RuleManager,
-		queryEngine:   o.QueryEngine,
-		lookbackDelta: o.LookbackDelta,
-		storage:       o.Storage,
-		localStorage:  o.LocalStorage,
-		notifier:      o.Notifier,
+		context:         o.Context,
+		scrapeManager:   o.ScrapeManager,
+		ruleManager:     o.RuleManager,
+		queryEngine:     o.QueryEngine,
+		lookbackDelta:   o.LookbackDelta,
+		storage:         o.Storage,
+		localStorage:    o.LocalStorage,
+		exemplarStorage: o.ExemplarStorage,
+		notifier:        o.Notifier,
 
 		now: model.Now,
 	}
@@ -297,7 +301,12 @@ func New(logger log.Logger, o *Options) *Handler {
 	factoryAr := func(_ context.Context) api_v1.AlertmanagerRetriever { return h.notifier }
 	FactoryRr := func(_ context.Context) api_v1.RulesRetriever { return h.ruleManager }
 
-	h.apiV1 = api_v1.NewAPI(h.queryEngine, h.storage, factoryTr, factoryAr,
+	var app storage.Appendable
+	if o.RemoteWriteReceiver {
+		app = h.storage
+	}
+
+	h.apiV1 = api_v1.NewAPI(h.queryEngine, h.storage, app, h.exemplarStorage, factoryTr, factoryAr,
 		func() config.Config {
 			h.mtx.RLock()
 			defer h.mtx.RUnlock()
@@ -322,6 +331,7 @@ func New(logger log.Logger, o *Options) *Handler {
 		h.runtimeInfo,
 		h.versionInfo,
 		o.Gatherer,
+		o.Registerer,
 	)
 
 	if o.RoutePrefix != "/" {
@@ -544,7 +554,7 @@ func (h *Handler) Listener() (net.Listener, error) {
 }
 
 // Run serves the HTTP endpoints.
-func (h *Handler) Run(ctx context.Context, listener net.Listener, httpsConfig string) error {
+func (h *Handler) Run(ctx context.Context, listener net.Listener, webConfig string) error {
 	if listener == nil {
 		var err error
 		listener, err = h.Listener()
@@ -580,7 +590,7 @@ func (h *Handler) Run(ctx context.Context, listener net.Listener, httpsConfig st
 
 	errCh := make(chan error)
 	go func() {
-		errCh <- https.Serve(listener, httpSrv, httpsConfig, h.logger)
+		errCh <- toolkit_web.Serve(listener, httpSrv, webConfig, h.logger)
 	}()
 
 	select {
