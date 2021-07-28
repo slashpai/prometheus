@@ -291,6 +291,7 @@ func ImageFromSchema(s schema.Image) *Image {
 			Delete: s.Protection.Delete,
 		},
 		Deprecated: s.Deprecated,
+		Deleted:    s.Deleted,
 	}
 	if s.Name != nil {
 		i.Name = *s.Name
@@ -555,6 +556,7 @@ func CertificateFromSchema(s schema.Certificate) *Certificate {
 	c := &Certificate{
 		ID:             s.ID,
 		Name:           s.Name,
+		Type:           CertificateType(s.Type),
 		Certificate:    s.Certificate,
 		Created:        s.Created,
 		NotValidBefore: s.NotValidBefore,
@@ -562,12 +564,26 @@ func CertificateFromSchema(s schema.Certificate) *Certificate {
 		DomainNames:    s.DomainNames,
 		Fingerprint:    s.Fingerprint,
 	}
+	if s.Status != nil {
+		c.Status = &CertificateStatus{
+			Issuance: CertificateStatusType(s.Status.Issuance),
+			Renewal:  CertificateStatusType(s.Status.Renewal),
+		}
+		if s.Status.Error != nil {
+			certErr := ErrorFromSchema(*s.Status.Error)
+			c.Status.Error = &certErr
+		}
+	}
 	if len(s.Labels) > 0 {
-		c.Labels = make(map[string]string)
+		c.Labels = s.Labels
 	}
-	for key, value := range s.Labels {
-		c.Labels[key] = value
+	if len(s.UsedBy) > 0 {
+		c.UsedBy = make([]CertificateUsedByRef, len(s.UsedBy))
+		for i, ref := range s.UsedBy {
+			c.UsedBy[i] = CertificateUsedByRef{ID: ref.ID, Type: CertificateUsedByRefType(ref.Type)}
+		}
 	}
+
 	return c
 }
 
@@ -714,7 +730,10 @@ func FirewallFromSchema(s schema.Firewall) *Firewall {
 	}
 	for _, res := range s.AppliedTo {
 		r := FirewallResource{Type: FirewallResourceType(res.Type)}
-		if r.Type == FirewallResourceTypeServer {
+		switch r.Type {
+		case FirewallResourceTypeLabelSelector:
+			r.LabelSelector = &FirewallResourceLabelSelector{Selector: res.LabelSelector.Selector}
+		case FirewallResourceTypeServer:
 			r.Server = &FirewallResourceServer{ID: res.Server.ID}
 		}
 		f.AppliedTo = append(f.AppliedTo, r)
@@ -804,8 +823,10 @@ func loadBalancerCreateOptsToSchema(opts LoadBalancerCreateOpts) schema.LoadBala
 				StickySessions: service.HTTP.StickySessions,
 				CookieName:     service.HTTP.CookieName,
 			}
-			if sec := service.HTTP.CookieLifetime.Seconds(); sec != 0 {
-				schemaService.HTTP.CookieLifetime = Int(int(sec))
+			if service.HTTP.CookieLifetime != nil {
+				if sec := service.HTTP.CookieLifetime.Seconds(); sec != 0 {
+					schemaService.HTTP.CookieLifetime = Int(int(sec))
+				}
 			}
 			if service.HTTP.Certificates != nil {
 				certificates := []int{}
@@ -982,10 +1003,13 @@ func firewallCreateOptsToSchema(opts FirewallCreateOpts) schema.FirewallCreateRe
 		schemaFirewallResource := schema.FirewallResource{
 			Type: string(res.Type),
 		}
-		if res.Type == FirewallResourceTypeServer {
+		switch res.Type {
+		case FirewallResourceTypeServer:
 			schemaFirewallResource.Server = &schema.FirewallResourceServer{
 				ID: res.Server.ID,
 			}
+		case FirewallResourceTypeLabelSelector:
+			schemaFirewallResource.LabelSelector = &schema.FirewallResourceLabelSelector{Selector: res.LabelSelector.Selector}
 		}
 
 		req.ApplyTo = append(req.ApplyTo, schemaFirewallResource)
@@ -1022,7 +1046,10 @@ func firewallResourceToSchema(resource FirewallResource) schema.FirewallResource
 	s := schema.FirewallResource{
 		Type: string(resource.Type),
 	}
-	if resource.Type == FirewallResourceTypeServer {
+	switch resource.Type {
+	case FirewallResourceTypeLabelSelector:
+		s.LabelSelector = &schema.FirewallResourceLabelSelector{Selector: resource.LabelSelector.Selector}
+	case FirewallResourceTypeServer:
 		s.Server = &schema.FirewallResourceServer{ID: resource.Server.ID}
 	}
 	return s
