@@ -1,4 +1,10 @@
 <!--
+    OpenShift: Don't forget to run `./scripts/rh-manifest.sh` from the
+    repository root, and check-in the updated `rh-manifest.txt` file if
+    necessary.
+-->
+
+<!--
     Don't forget!
     
     - If the PR adds or changes a behaviour or fixes a bug of an exported API it would need a unit/e2e test.
