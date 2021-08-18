@@ -352,10 +352,12 @@ type QueueManager struct {
 	clientMtx   sync.RWMutex
 	storeClient WriteClient
 
-	seriesMtx            sync.Mutex
-	seriesLabels         map[uint64]labels.Labels
+	seriesMtx     sync.Mutex // Covers seriesLabels and droppedSeries.
+	seriesLabels  map[uint64]labels.Labels
+	droppedSeries map[uint64]struct{}
+
+	seriesSegmentMtx     sync.Mutex // Covers seriesSegmentIndexes - if you also lock seriesMtx, take seriesMtx first.
 	seriesSegmentIndexes map[uint64]int
-	droppedSeries        map[uint64]struct{}
 
 	shards      *shards
 	numShards   int
@@ -443,11 +445,17 @@ func (t *QueueManager) AppendMetadata(ctx context.Context, metadata []scrape.Met
 		})
 	}
 
-	err := t.sendMetadataWithBackoff(ctx, mm)
-
-	if err != nil {
-		t.metrics.failedMetadataTotal.Add(float64(len(metadata)))
-		level.Error(t.logger).Log("msg", "non-recoverable error while sending metadata", "count", len(metadata), "err", err)
+	numSends := int(math.Ceil(float64(len(metadata)) / float64(t.mcfg.MaxSamplesPerSend)))
+	for i := 0; i < numSends; i++ {
+		last := (i + 1) * t.mcfg.MaxSamplesPerSend
+		if last > len(metadata) {
+			last = len(metadata)
+		}
+		err := t.sendMetadataWithBackoff(ctx, mm[i*t.mcfg.MaxSamplesPerSend:last])
+		if err != nil {
+			t.metrics.failedMetadataTotal.Add(float64(last - (i * t.mcfg.MaxSamplesPerSend)))
+			level.Error(t.logger).Log("msg", "non-recoverable error while sending metadata", "count", last-(i*t.mcfg.MaxSamplesPerSend), "err", err)
+		}
 	}
 }
 
@@ -636,6 +644,8 @@ func (t *QueueManager) Stop() {
 func (t *QueueManager) StoreSeries(series []record.RefSeries, index int) {
 	t.seriesMtx.Lock()
 	defer t.seriesMtx.Unlock()
+	t.seriesSegmentMtx.Lock()
+	defer t.seriesSegmentMtx.Unlock()
 	for _, s := range series {
 		// Just make sure all the Refs of Series will insert into seriesSegmentIndexes map for tracking.
 		t.seriesSegmentIndexes[s.Ref] = index
@@ -658,12 +668,23 @@ func (t *QueueManager) StoreSeries(series []record.RefSeries, index int) {
 	}
 }
 
+// Update the segment number held against the series, so we can trim older ones in SeriesReset.
+func (t *QueueManager) UpdateSeriesSegment(series []record.RefSeries, index int) {
+	t.seriesSegmentMtx.Lock()
+	defer t.seriesSegmentMtx.Unlock()
+	for _, s := range series {
+		t.seriesSegmentIndexes[s.Ref] = index
+	}
+}
+
 // SeriesReset is used when reading a checkpoint. WAL Watcher should have
 // stored series records with the checkpoints index number, so we can now
 // delete any ref ID's lower than that # from the two maps.
 func (t *QueueManager) SeriesReset(index int) {
 	t.seriesMtx.Lock()
 	defer t.seriesMtx.Unlock()
+	t.seriesSegmentMtx.Lock()
+	defer t.seriesSegmentMtx.Unlock()
 	// Check for series that are in segments older than the checkpoint
 	// that were not also present in the checkpoint.
 	for k, v := range t.seriesSegmentIndexes {
