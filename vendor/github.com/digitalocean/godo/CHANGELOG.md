@@ -1,5 +1,21 @@
 # Change Log
 
+## [v1.64.2] - 2021-07-23
+
+- #464 - @bsnyder788 - insights: update HTTP method for alert policy update
+
+## [v1.64.1] - 2021-07-19
+
+- #462 - @bsnyder788 - insights: fix alert policy update endpoint
+
+## [v1.64.0] - 2021-07-19
+
+- #460 - @bsnyder788 - insights: add CRUD APIs for alert policies
+
+## [v1.63.0] - 2021-07-06
+
+- #458 - @ZachEddy - apps: Add tail_lines query parameter to GetLogs function
+
 ## [v1.62.0] - 2021-06-07
 
 - #454 - @house-lee - add with_droplet_agent option to create requests

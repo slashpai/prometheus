@@ -36,6 +36,7 @@ type LKEClusterPool struct {
 	Type    string                 `json:"type"`
 	Disks   []LKEClusterPoolDisk   `json:"disks"`
 	Linodes []LKEClusterPoolLinode `json:"nodes"`
+	Tags    []string               `json:"tags"`
 }
 
 // LKEClusterPoolCreateOptions fields are those accepted by CreateLKEClusterPool
@@ -43,11 +44,13 @@ type LKEClusterPoolCreateOptions struct {
 	Count int                  `json:"count"`
 	Type  string               `json:"type"`
 	Disks []LKEClusterPoolDisk `json:"disks"`
+	Tags  []string             `json:"tags"`
 }
 
 // LKEClusterPoolUpdateOptions fields are those accepted by UpdateLKEClusterPool
 type LKEClusterPoolUpdateOptions struct {
-	Count int `json:"count"`
+	Count int       `json:"count,omitempty"`
+	Tags  *[]string `json:"tags,omitempty"`
 }
 
 // GetCreateOptions converts a LKEClusterPool to LKEClusterPoolCreateOptions for
@@ -55,12 +58,14 @@ type LKEClusterPoolUpdateOptions struct {
 func (l LKEClusterPool) GetCreateOptions() (o LKEClusterPoolCreateOptions) {
 	o.Count = l.Count
 	o.Disks = l.Disks
+	o.Tags = l.Tags
 	return
 }
 
 // GetUpdateOptions converts a LKEClusterPool to LKEClusterPoolUpdateOptions for use in UpdateLKEClusterPool
 func (l LKEClusterPool) GetUpdateOptions() (o LKEClusterPoolUpdateOptions) {
 	o.Count = l.Count
+	o.Tags = &l.Tags
 	return
 }
 
@@ -168,6 +173,18 @@ func (c *Client) DeleteLKEClusterPool(ctx context.Context,
 		return err
 	}
 	e = fmt.Sprintf("%s/%d", e, id)
+
+	_, err = coupleAPIErrors(c.R(ctx).Delete(e))
+	return err
+}
+
+// DeleteLKEClusterPoolNode deletes a given node from a cluster pool
+func (c *Client) DeleteLKEClusterPoolNode(ctx context.Context, clusterID int, id string) error {
+	e, err := c.LKEClusters.Endpoint()
+	if err != nil {
+		return err
+	}
+	e = fmt.Sprintf("%s/%d/nodes/%s", e, clusterID, id)
 
 	_, err = coupleAPIErrors(c.R(ctx).Delete(e))
 	return err
