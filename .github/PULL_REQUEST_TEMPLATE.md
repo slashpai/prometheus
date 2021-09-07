@@ -1,4 +1,10 @@
 <!--
+    OpenShift: Don't forget to run `./scripts/rh-manifest.sh` from the
+    repository root, and check-in the updated `rh-manifest.txt` file if
+    necessary.
+-->
+
+<!--
     Don't forget!
 
     - Please sign CNCF's Developer Certificate of Origin and sign-off your commits by adding the -s / --sign-off flag to `git commit`. See https://github.com/apps/dco for more information.
