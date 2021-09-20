@@ -640,6 +640,9 @@ tls_config:
 # tasks and services that don't have published ports.
 [ port: <int> | default = 80 ]
 
+# The host to use if the container is in host networking mode.
+[ host_networking_host: <string> | default = "localhost" ]
+
 # Optional filters to limit the discovery process to a subset of available
 # resources.
 # The available filters are listed in the upstream documentation:
@@ -1703,7 +1706,7 @@ The following meta labels are available on targets during [relabeling](#relabel_
 # Note that `basic_auth` and `authorization` options are
 # mutually exclusive.
 # password and password_file are mutually exclusive.
-# Note: Linode APIv4 Token must be created with scopes: 'linodes:read_only' and 'ips:read_only'
+# Note: Linode APIv4 Token must be created with scopes: 'linodes:read_only', 'ips:read_only', and 'events:read_only'
 
 # Optional HTTP basic authentication information, not currently supported by Linode APIv4.
 basic_auth:
@@ -2168,6 +2171,9 @@ After relabeling, the `instance` label is set to the value of `__address__` by d
 it was not set during relabeling. The `__scheme__` and `__metrics_path__` labels
 are set to the scheme and metrics path of the target respectively. The `__param_<name>`
 label is set to the value of the first passed URL parameter called `<name>`.
+
+The `__scrape_interval__` and `__scrape_timeout__` labels are set to the target's
+interval and timeout. This is **experimental** and could change in the future.
 
 Additional labels prefixed with `__meta_` may be available during the
 relabeling phase. They are set by the service discovery mechanism that provided

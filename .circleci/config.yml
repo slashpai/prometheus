@@ -3,7 +3,7 @@ version: 2.1
 
 orbs:
   prometheus: prometheus/prometheus@0.11.0
-  go: circleci/go@0.2.0
+  go: circleci/go@1.7.0
   win: circleci/windows@2.3.0
 
 executors:
@@ -11,27 +11,21 @@ executors:
   # should also be updated.
   golang:
     docker:
-      - image: circleci/golang:1.16-node
+      - image: quay.io/prometheus/golang-builder:1.17-base
   golang_115:
     docker:
-      - image: circleci/golang:1.15-node
+      - image: quay.io/prometheus/golang-builder:1.15-base
 
 jobs:
-  test:
+  test_go:
     executor: golang
 
     steps:
       - prometheus/setup_environment
       - go/load-cache:
           key: v1
-      - restore_cache:
-          keys:
-            - v3-npm-deps-{{ checksum "web/ui/react-app/yarn.lock" }}
-            - v3-npm-deps-
       - run:
-          command: sudo apt-get install -y yamllint
-      - run:
-          command: make
+          command: make GO_ONLY=1
           environment:
             # Run garbage collection more aggressively to avoid getting OOMed during the lint phase.
             GOGC: "20"
@@ -50,12 +44,32 @@ jobs:
           file: promtool
       - go/save-cache:
           key: v1
-      - save_cache:
-          key: v3-npm-deps-{{ checksum "web/ui/react-app/yarn.lock" }}
-          paths:
-            - /home/circleci/.cache/yarn
       - store_test_results:
           path: test-results
+
+  test_react:
+    executor: golang
+
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v3-npm-deps-{{ checksum "web/ui/react-app/package-lock.json" }}
+            - v3-npm-deps-
+      - run:
+          command: make react-app-test
+      - save_cache:
+          key: v3-npm-deps-{{ checksum "web/ui/react-app/package-lock.json" }}
+          paths:
+            - ~/.npm
+
+  test_web_module:
+    executor: golang
+    steps:
+      - checkout
+      - run: make web-module-install
+      - run: make web-module-test
+      - run: make web-module-lint
 
   test_windows:
     executor:
@@ -101,8 +115,6 @@ jobs:
           command: jb install
           working_directory: ~/project/documentation/prometheus-mixin
       - run:
-          command: sudo apt-get install -y yamllint
-      - run:
           command: make
           working_directory: ~/project/documentation/prometheus-mixin
       - run:
@@ -113,15 +125,21 @@ jobs:
     executor: golang
     steps:
       - checkout
-      - run: mkdir -v -p "${PATH%%:*}" && curl -sL --fail https://github.com/mikefarah/yq/releases/download/v4.6.3/yq_linux_amd64 -o "${PATH%%:*}/yq" && chmod -v +x "${PATH%%:*}/yq"
-      - run: sha256sum -c <(echo "c4343783c3361495c0d6d1eb742bba7432aa65e13e9fb8d7e201d544bcf14246 ${PATH%%:*}/yq")
       - run: ./scripts/sync_repo_files.sh
 
 workflows:
   version: 2
   prometheus:
     jobs:
-      - test:
+      - test_go:
+          filters:
+            tags:
+              only: /.*/
+      - test_react:
+          filters:
+            tags:
+              only: /.*/
+      - test_web_module:
           filters:
             tags:
               only: /.*/
@@ -146,7 +164,8 @@ workflows:
       - prometheus/publish_main:
           context: org-context
           requires:
-            - test
+            - test_go
+            - test_react
             - build
           filters:
             branches:
@@ -155,7 +174,8 @@ workflows:
       - prometheus/publish_release:
           context: org-context
           requires:
-            - test
+            - test_go
+            - test_react
             - build
           filters:
             tags:
