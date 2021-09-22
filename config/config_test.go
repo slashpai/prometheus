@@ -735,11 +735,12 @@ var expectedConf = &Config{
 
 			ServiceDiscoveryConfigs: discovery.Configs{
 				&moby.DockerSDConfig{
-					Filters:          []moby.Filter{},
-					Host:             "unix:///var/run/docker.sock",
-					Port:             80,
-					RefreshInterval:  model.Duration(60 * time.Second),
-					HTTPClientConfig: config.DefaultHTTPClientConfig,
+					Filters:            []moby.Filter{},
+					Host:               "unix:///var/run/docker.sock",
+					Port:               80,
+					HostNetworkingHost: "localhost",
+					RefreshInterval:    model.Duration(60 * time.Second),
+					HTTPClientConfig:   config.DefaultHTTPClientConfig,
 				},
 			},
 		},
@@ -1300,6 +1301,10 @@ var expectedErrors = []struct {
 	{
 		filename: "http_url_bad_scheme.bad.yml",
 		errMsg:   "URL scheme must be 'http' or 'https'",
+	},
+	{
+		filename: "empty_scrape_config_action.bad.yml",
+		errMsg:   "relabel action cannot be empty",
 	},
 }
 
