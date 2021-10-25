@@ -7,8 +7,15 @@ set -u
 
 WORKING_FILE="$(mktemp /tmp/rh-manifest.XXXXXXXX)"
 
-find . -name package.json -execdir yarn list --silent --json \; | \
-	jq -r '.. | objects | .name? | select(. != null)' \
-	   >>"${WORKING_FILE}"
+atexit() {
+	echo "Cleaning up..."
+	rm "$WORKING_FILE"
+}
 
-sort "${WORKING_FILE}" | uniq > rh-manifest.txt
+trap atexit EXIT
+
+find . -name package.json -execdir npm list --prod --json --all --package-lock-only \; |
+	jq -r '..|objects|to_entries|.[]|select(.value.version?) | "\(.key)@\(.value.version)"' \
+		>>"${WORKING_FILE}"
+
+sort "${WORKING_FILE}" | uniq >rh-manifest.txt
