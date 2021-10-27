@@ -2,7 +2,6 @@ component: "Monitoring"
 
 reviewers:
 - simonpasquier
-- dgrisonnet
 - raptorsun
 - slashpai
 - prashbnair
@@ -15,7 +14,6 @@ reviewers:
 
 approvers:
 - simonpasquier
-- dgrisonnet
 - raptorsun
 - slashpai
 - prashbnair
@@ -27,6 +25,7 @@ approvers:
 - jan--f
 
 emeritus_approvers:
+- dgrisonnet
 - brancz
 - krasi-georgiev
 - pgier
