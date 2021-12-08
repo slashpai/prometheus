@@ -27,3 +27,5 @@ npm_licenses.tar.bz2
 
 #/vendor
 /.build
+
+/**/node_modules

@@ -297,7 +297,7 @@ const resolvedRetention = 15 * time.Minute
 
 // Eval evaluates the rule expression and then creates pending alerts and fires
 // or removes previously pending alerts accordingly.
-func (r *AlertingRule) Eval(ctx context.Context, ts time.Time, query QueryFunc, externalURL *url.URL) (promql.Vector, error) {
+func (r *AlertingRule) Eval(ctx context.Context, ts time.Time, query QueryFunc, externalURL *url.URL, limit int) (promql.Vector, error) {
 	res, err := query(ctx, r.vector.String(), ts)
 	if err != nil {
 		return nil, err
@@ -338,6 +338,7 @@ func (r *AlertingRule) Eval(ctx context.Context, ts time.Time, query QueryFunc, 
 				model.Time(timestamp.FromTime(ts)),
 				template.QueryFunc(query),
 				externalURL,
+				nil,
 			)
 			result, err := tmpl.Expand()
 			if err != nil {
@@ -388,6 +389,7 @@ func (r *AlertingRule) Eval(ctx context.Context, ts time.Time, query QueryFunc, 
 		r.active[h] = a
 	}
 
+	var numActivePending int
 	// Check if any pending alerts should be removed or fire now. Write out alert timeseries.
 	for fp, a := range r.active {
 		if _, ok := resultFPs[fp]; !ok {
@@ -402,6 +404,7 @@ func (r *AlertingRule) Eval(ctx context.Context, ts time.Time, query QueryFunc, 
 			}
 			continue
 		}
+		numActivePending++
 
 		if a.State == StatePending && ts.Sub(a.ActiveAt) >= r.holdDuration {
 			a.State = StateFiring
@@ -412,6 +415,11 @@ func (r *AlertingRule) Eval(ctx context.Context, ts time.Time, query QueryFunc, 
 			vec = append(vec, r.sample(a, ts))
 			vec = append(vec, r.forStateSample(a, ts, float64(a.ActiveAt.Unix())))
 		}
+	}
+
+	if limit > 0 && numActivePending > limit {
+		r.active = map[uint64]*Alert{}
+		return nil, errors.Errorf("exceeded limit of %d with %d alerts", limit, numActivePending)
 	}
 
 	return vec, nil
