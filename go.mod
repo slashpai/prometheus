@@ -20,6 +20,7 @@ require (
 	github.com/edsrzf/mmap-go v1.0.0
 	github.com/envoyproxy/go-control-plane v0.9.9
 	github.com/envoyproxy/protoc-gen-validate v0.6.1
+	github.com/go-kit/kit v0.10.0
 	github.com/go-kit/log v0.2.0
 	github.com/go-logfmt/logfmt v0.5.1
 	github.com/go-openapi/strfmt v0.20.3
