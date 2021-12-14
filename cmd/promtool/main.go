@@ -137,6 +137,7 @@ func main() {
 	analyzePath := tsdbAnalyzeCmd.Arg("db path", "Database path (default is "+defaultDBPath+").").Default(defaultDBPath).String()
 	analyzeBlockID := tsdbAnalyzeCmd.Arg("block id", "Block to analyze (default is the last block).").String()
 	analyzeLimit := tsdbAnalyzeCmd.Flag("limit", "How many items to show in each list.").Default("20").Int()
+	analyzeRunExtended := tsdbAnalyzeCmd.Flag("extended", "Run extended analysis.").Bool()
 
 	tsdbListCmd := tsdbCmd.Command("list", "List tsdb blocks.")
 	listHumanReadable := tsdbListCmd.Flag("human-readable", "Print human readable values.").Short('r').Bool()
@@ -237,7 +238,7 @@ func main() {
 		os.Exit(checkErr(benchmarkWrite(*benchWriteOutPath, *benchSamplesFile, *benchWriteNumMetrics, *benchWriteNumScrapes)))
 
 	case tsdbAnalyzeCmd.FullCommand():
-		os.Exit(checkErr(analyzeBlock(*analyzePath, *analyzeBlockID, *analyzeLimit)))
+		os.Exit(checkErr(analyzeBlock(*analyzePath, *analyzeBlockID, *analyzeLimit, *analyzeRunExtended)))
 
 	case tsdbListCmd.FullCommand():
 		os.Exit(checkErr(listBlocks(*listPath, *listHumanReadable)))
@@ -249,7 +250,7 @@ func main() {
 		os.Exit(backfillOpenMetrics(*importFilePath, *importDBPath, *importHumanReadable, *importQuiet, *maxBlockDuration))
 
 	case importRulesCmd.FullCommand():
-		os.Exit(checkErr(importRules(*importRulesURL, *importRulesStart, *importRulesEnd, *importRulesOutputDir, *importRulesEvalInterval, *importRulesFiles...)))
+		os.Exit(checkErr(importRules(*importRulesURL, *importRulesStart, *importRulesEnd, *importRulesOutputDir, *importRulesEvalInterval, *maxBlockDuration, *importRulesFiles...)))
 	}
 }
 
@@ -926,7 +927,7 @@ func (j *jsonPrinter) printLabelValues(v model.LabelValues) {
 
 // importRules backfills recording rules from the files provided. The output are blocks of data
 // at the outputDir location.
-func importRules(url *url.URL, start, end, outputDir string, evalInterval time.Duration, files ...string) error {
+func importRules(url *url.URL, start, end, outputDir string, evalInterval time.Duration, maxBlockDuration time.Duration, files ...string) error {
 	ctx := context.Background()
 	var stime, etime time.Time
 	var err error
@@ -949,10 +950,11 @@ func importRules(url *url.URL, start, end, outputDir string, evalInterval time.D
 	}
 
 	cfg := ruleImporterConfig{
-		outputDir:    outputDir,
-		start:        stime,
-		end:          etime,
-		evalInterval: evalInterval,
+		outputDir:        outputDir,
+		start:            stime,
+		end:              etime,
+		evalInterval:     evalInterval,
+		maxBlockDuration: maxBlockDuration,
 	}
 	client, err := api.NewClient(api.Config{
 		Address: url.String(),
