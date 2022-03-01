@@ -212,17 +212,13 @@ func TestNoPanicAfterWALCorruption(t *testing.T) {
 	var maxt int64
 	ctx := context.Background()
 	{
-		for {
+		// Appending 121 samples because on the 121st a new chunk will be created.
+		for i := 0; i < 121; i++ {
 			app := db.Appender(ctx)
 			_, err := app.Append(0, labels.FromStrings("foo", "bar"), maxt, 0)
 			expSamples = append(expSamples, sample{t: maxt, v: 0})
 			require.NoError(t, err)
 			require.NoError(t, app.Commit())
-			mmapedChunks, err := ioutil.ReadDir(mmappedChunksDir(db.Dir()))
-			require.NoError(t, err)
-			if len(mmapedChunks) > 0 {
-				break
-			}
 			maxt++
 		}
 		require.NoError(t, db.Close())
@@ -1465,6 +1461,10 @@ func TestSizeRetention(t *testing.T) {
 	}
 	require.NoError(t, headApp.Commit())
 
+	require.Eventually(t, func() bool {
+		return db.Head().chunkDiskMapper.IsQueueEmpty()
+	}, 2*time.Second, 100*time.Millisecond)
+
 	// Test that registered size matches the actual disk size.
 	require.NoError(t, db.reloadBlocks())                               // Reload the db to register the new db size.
 	require.Equal(t, len(blocks), len(db.Blocks()))                     // Ensure all blocks are registered.
@@ -2453,7 +2453,7 @@ func TestDBReadOnly_FlushWAL(t *testing.T) {
 			require.NoError(t, err)
 		}
 		require.NoError(t, app.Commit())
-		defer func() { require.NoError(t, db.Close()) }()
+		require.NoError(t, db.Close())
 	}
 
 	// Flush WAL.
@@ -3511,4 +3511,62 @@ func newTestDB(t *testing.T) *DB {
 		require.NoError(t, db.Close())
 	})
 	return db
+}
+
+// Tests https://github.com/prometheus/prometheus/issues/10291#issuecomment-1044373110.
+func TestDBPanicOnMmappingHeadChunk(t *testing.T) {
+	dir := t.TempDir()
+
+	db, err := Open(dir, nil, nil, DefaultOptions(), nil)
+	require.NoError(t, err)
+	db.DisableCompactions()
+
+	// Choosing scrape interval of 45s to have chunk larger than 1h.
+	itvl := int64(45 * time.Second / time.Millisecond)
+
+	lastTs := int64(0)
+	addSamples := func(numSamples int) {
+		app := db.Appender(context.Background())
+		var ref storage.SeriesRef
+		lbls := labels.FromStrings("__name__", "testing", "foo", "bar")
+		for i := 0; i < numSamples; i++ {
+			ref, err = app.Append(ref, lbls, lastTs, float64(lastTs))
+			require.NoError(t, err)
+			lastTs += itvl
+			if i%10 == 0 {
+				require.NoError(t, app.Commit())
+				app = db.Appender(context.Background())
+			}
+		}
+		require.NoError(t, app.Commit())
+	}
+
+	// Ingest samples upto 2h50m to make the head "about to compact".
+	numSamples := int(170*time.Minute/time.Millisecond) / int(itvl)
+	addSamples(numSamples)
+
+	require.Len(t, db.Blocks(), 0)
+	require.NoError(t, db.Compact())
+	require.Len(t, db.Blocks(), 0)
+
+	// Restarting.
+	require.NoError(t, db.Close())
+
+	db, err = Open(dir, nil, nil, DefaultOptions(), nil)
+	require.NoError(t, err)
+	db.DisableCompactions()
+
+	// Ingest samples upto 20m more to make the head compact.
+	numSamples = int(20*time.Minute/time.Millisecond) / int(itvl)
+	addSamples(numSamples)
+
+	require.Len(t, db.Blocks(), 0)
+	require.NoError(t, db.Compact())
+	require.Len(t, db.Blocks(), 1)
+
+	// More samples to m-map and panic.
+	numSamples = int(120*time.Minute/time.Millisecond) / int(itvl)
+	addSamples(numSamples)
+
+	require.NoError(t, db.Close())
 }

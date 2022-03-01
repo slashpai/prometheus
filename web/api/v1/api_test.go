@@ -407,9 +407,7 @@ func TestEndpoints(t *testing.T) {
 			Format: &af,
 		}
 
-		dbDir, err := ioutil.TempDir("", "tsdb-api-ready")
-		require.NoError(t, err)
-		defer os.RemoveAll(dbDir)
+		dbDir := t.TempDir()
 
 		remote := remote.NewStorage(promlog.New(&promlogConfig), prometheus.DefaultRegisterer, func() (int64, error) {
 			return 0, nil
@@ -1472,6 +1470,7 @@ func testEndpoints(t *testing.T, api *API, tr *testTargetRetriever, es storage.E
 						Name:     "grp",
 						File:     "/path/to/file",
 						Interval: 1,
+						Limit:    0,
 						Rules: []Rule{
 							AlertingRule{
 								State:       "inactive",
@@ -1518,6 +1517,7 @@ func testEndpoints(t *testing.T, api *API, tr *testTargetRetriever, es storage.E
 						Name:     "grp",
 						File:     "/path/to/file",
 						Interval: 1,
+						Limit:    0,
 						Rules: []Rule{
 							AlertingRule{
 								State:       "inactive",
@@ -1557,6 +1557,7 @@ func testEndpoints(t *testing.T, api *API, tr *testTargetRetriever, es storage.E
 						Name:     "grp",
 						File:     "/path/to/file",
 						Interval: 1,
+						Limit:    0,
 						Rules: []Rule{
 							RecordingRule{
 								Name:   "recording-rule-1",
@@ -2344,8 +2345,7 @@ func TestAdminEndpoints(t *testing.T) {
 	} {
 		tc := tc
 		t.Run("", func(t *testing.T) {
-			dir, _ := ioutil.TempDir("", "fakeDB")
-			defer func() { require.NoError(t, os.RemoveAll(dir)) }()
+			dir := t.TempDir()
 
 			api := &API{
 				db:          tc.db,
