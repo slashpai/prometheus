@@ -6,7 +6,7 @@
 @codemirror/gutter@0.19.5
 @codemirror/highlight@0.19.6
 @codemirror/history@0.19.0
-@codemirror/language@0.19.6
+@codemirror/language@0.19.7
 @codemirror/lint@0.19.3
 @codemirror/matchbrackets@0.19.3
 @codemirror/panel@0.19.0
@@ -15,16 +15,17 @@
 @codemirror/state@0.19.6
 @codemirror/text@0.19.3
 @codemirror/tooltip@0.19.7
-@codemirror/view@0.19.24
+@codemirror/view@0.19.27
 @forevolve/bootstrap-dark@1.1.0
 @fortawesome/fontawesome-common-types@0.2.36
 @fortawesome/fontawesome-svg-core@1.2.36
 @fortawesome/free-solid-svg-icons@5.15.4
 @fortawesome/react-fontawesome@0.1.16
 @hypnosphi/create-react-context@0.3.1
-@lezer/common@0.15.10
-@lezer/lr@0.15.2
+@lezer/common@0.15.11
+@lezer/lr@0.15.5
 @nexucis/fuzzy@0.3.0
+@nexucis/kvsearch@0.4.0
 @types/json5@0.0.29
 @types/resize-observer-browser@0.1.6
 anymatch@3.1.2
@@ -36,7 +37,7 @@ buffer-from@1.1.1
 call-bind@1.0.2
 chokidar@3.5.1
 classnames@2.3.1
-codemirror-promql@0.18.0
+codemirror-promql@0.19.0
 colors@0.5.1
 compute-scroll-into-view@1.0.17
 copy-to-clipboard@3.3.1
@@ -70,7 +71,7 @@ has@1.0.3
 history@4.10.1
 hoist-non-react-statics@3.3.2
 htmlparser2@6.1.0
-i@0.3.7
+immutable@4.0.0
 is-arguments@1.1.1
 is-binary-path@2.1.0
 is-date-object@1.0.5
@@ -114,6 +115,7 @@ railroad-diagrams@1.0.0
 randexp@0.4.6
 react-copy-to-clipboard@5.0.4
 react-dom@17.0.2
+react-infinite-scroll-component@6.1.0
 react-is@16.13.1
 react-is@17.0.2
 react-lifecycles-compat@3.0.4
@@ -134,7 +136,7 @@ resize-observer-polyfill@1.5.1
 resolve-pathname@3.0.0
 ret@0.1.15
 sanitize-html@2.6.0
-sass@1.43.4
+sass@1.44.0
 scheduler@0.20.2
 source-map-js@0.6.2
 source-map-support@0.5.10
@@ -143,6 +145,7 @@ strip-bom@3.0.0
 style-mod@4.0.0
 tempusdominus-bootstrap-4@5.39.0
 tempusdominus-core@5.19.0
+throttle-debounce@2.3.0
 tiny-invariant@1.1.0
 tiny-warning@1.0.3
 to-regex-range@5.0.1
