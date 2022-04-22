@@ -1,5 +1,17 @@
 # Change Log
 
+## [v1.78.0] - 2022-03-31
+
+- #522 - @jcodybaker - app platform: add support for features field
+
+## [v1.77.0] - 2022-03-16
+
+- #518 - @rcj4747 - apps: Update apps protos
+
+## [v1.76.0] - 2022-03-09
+
+- #516 - @CollinShoop - Add registry region support
+
 ## [v1.75.0] - 2022-01-27
 
 - #508 - @ElanHasson - Synchronize public protos and add multiple specs
