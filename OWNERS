@@ -6,8 +6,6 @@ reviewers:
 - slashpai
 - arajkumar
 - sthaha
-- PhilipGough
-- bison
 - jan--f
 - JoaoBraveCoding
 
@@ -17,12 +15,12 @@ approvers:
 - slashpai
 - arajkumar
 - sthaha
-- PhilipGough
-- bison
 - jan--f
 - JoaoBraveCoding
 
 emeritus_approvers:
+- PhilipGough
+- bison
 - dgrisonnet
 - brancz
 - krasi-georgiev

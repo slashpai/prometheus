@@ -14,6 +14,7 @@
 package config
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"io/ioutil"
 	"net/url"
@@ -109,6 +110,7 @@ var expectedConf = &Config{
 					},
 				},
 				FollowRedirects: true,
+				EnableHTTP2:     true,
 			},
 		},
 		{
@@ -123,6 +125,7 @@ var expectedConf = &Config{
 					KeyFile:  filepath.FromSlash("testdata/valid_key_file"),
 				},
 				FollowRedirects: true,
+				EnableHTTP2:     true,
 			},
 			Headers: map[string]string{"name": "value"},
 		},
@@ -130,11 +133,14 @@ var expectedConf = &Config{
 
 	RemoteReadConfigs: []*RemoteReadConfig{
 		{
-			URL:                  mustParseURL("http://remote1/read"),
-			RemoteTimeout:        model.Duration(1 * time.Minute),
-			ReadRecent:           true,
-			Name:                 "default",
-			HTTPClientConfig:     config.DefaultHTTPClientConfig,
+			URL:           mustParseURL("http://remote1/read"),
+			RemoteTimeout: model.Duration(1 * time.Minute),
+			ReadRecent:    true,
+			Name:          "default",
+			HTTPClientConfig: config.HTTPClientConfig{
+				FollowRedirects: true,
+				EnableHTTP2:     false,
+			},
 			FilterExternalLabels: true,
 		},
 		{
@@ -149,6 +155,7 @@ var expectedConf = &Config{
 					KeyFile:  filepath.FromSlash("testdata/valid_key_file"),
 				},
 				FollowRedirects: true,
+				EnableHTTP2:     true,
 			},
 			FilterExternalLabels: true,
 		},
@@ -172,6 +179,10 @@ var expectedConf = &Config{
 					CredentialsFile: filepath.FromSlash("testdata/valid_token_file"),
 				},
 				FollowRedirects: true,
+				EnableHTTP2:     true,
+				TLSConfig: config.TLSConfig{
+					MinVersion: config.TLSVersion(tls.VersionTLS10),
+				},
 			},
 
 			ServiceDiscoveryConfigs: discovery.Configs{
@@ -243,6 +254,7 @@ var expectedConf = &Config{
 					Password: "multiline\nmysecret\ntest",
 				},
 				FollowRedirects: true,
+				EnableHTTP2:     true,
 			},
 			MetricsPath: "/my_path",
 			Scheme:      "https",
@@ -348,6 +360,7 @@ var expectedConf = &Config{
 							InsecureSkipVerify: false,
 						},
 						FollowRedirects: true,
+						EnableHTTP2:     true,
 					},
 				},
 			},
@@ -385,6 +398,7 @@ var expectedConf = &Config{
 				},
 
 				FollowRedirects: true,
+				EnableHTTP2:     true,
 			},
 		},
 		{
@@ -412,6 +426,7 @@ var expectedConf = &Config{
 							KeyFile:  filepath.FromSlash("testdata/valid_key_file"),
 						},
 						FollowRedirects: true,
+						EnableHTTP2:     true,
 					},
 					NamespaceDiscovery: kubernetes.NamespaceDiscovery{},
 				},
@@ -432,6 +447,7 @@ var expectedConf = &Config{
 					PasswordFile: filepath.FromSlash("testdata/valid_password_file"),
 				},
 				FollowRedirects: true,
+				EnableHTTP2:     true,
 			},
 
 			ServiceDiscoveryConfigs: discovery.Configs{
@@ -491,6 +507,7 @@ var expectedConf = &Config{
 							KeyFile:  filepath.FromSlash("testdata/valid_key_file"),
 						},
 						FollowRedirects: true,
+						EnableHTTP2:     true,
 					},
 				},
 			},
@@ -564,6 +581,7 @@ var expectedConf = &Config{
 				&azure.SDConfig{
 					Environment:          "AzurePublicCloud",
 					SubscriptionID:       "11AAAA11-A11A-111A-A111-1111A1111A11",
+					ResourceGroup:        "my-resource-group",
 					TenantID:             "BBBB222B-B2B2-2B22-B222-2BB2222BB2B2",
 					ClientID:             "333333CC-3C33-3333-CCC3-33C3CCCCC33C",
 					ClientSecret:         "mysecret",
@@ -724,6 +742,7 @@ var expectedConf = &Config{
 							Credentials: "abcdef",
 						},
 						FollowRedirects: true,
+						EnableHTTP2:     true,
 					},
 					Port:            80,
 					RefreshInterval: model.Duration(60 * time.Second),
@@ -820,6 +839,7 @@ var expectedConf = &Config{
 					RefreshInterval:   model.Duration(60 * time.Second),
 					HTTPClientConfig: config.HTTPClientConfig{
 						FollowRedirects: true,
+						EnableHTTP2:     true,
 						TLSConfig: config.TLSConfig{
 							CAFile:   "testdata/valid_ca_file",
 							CertFile: "testdata/valid_cert_file",
@@ -847,6 +867,7 @@ var expectedConf = &Config{
 							Credentials: "abcdef",
 						},
 						FollowRedirects: true,
+						EnableHTTP2:     true,
 					},
 					Port:            80,
 					RefreshInterval: model.Duration(60 * time.Second),
@@ -856,6 +877,7 @@ var expectedConf = &Config{
 					HTTPClientConfig: config.HTTPClientConfig{
 						BasicAuth:       &config.BasicAuth{Username: "abcdef", Password: "abcdef"},
 						FollowRedirects: true,
+						EnableHTTP2:     true,
 					},
 					Port:            80,
 					RefreshInterval: model.Duration(60 * time.Second),
@@ -888,16 +910,15 @@ var expectedConf = &Config{
 			HonorTimestamps:  true,
 			ScrapeInterval:   model.Duration(15 * time.Second),
 			ScrapeTimeout:    DefaultGlobalConfig.ScrapeTimeout,
-			HTTPClientConfig: config.HTTPClientConfig{FollowRedirects: true},
-
-			MetricsPath: DefaultScrapeConfig.MetricsPath,
-			Scheme:      DefaultScrapeConfig.Scheme,
+			HTTPClientConfig: config.DefaultHTTPClientConfig,
+			MetricsPath:      DefaultScrapeConfig.MetricsPath,
+			Scheme:           DefaultScrapeConfig.Scheme,
 
 			ServiceDiscoveryConfigs: discovery.Configs{
 				&scaleway.SDConfig{
 					APIURL:           "https://api.scaleway.com",
 					AccessKey:        "SCWXXXXXXXXXXXXXXXXX",
-					HTTPClientConfig: config.HTTPClientConfig{FollowRedirects: true},
+					HTTPClientConfig: config.DefaultHTTPClientConfig,
 					Port:             80,
 					Project:          "11111111-1111-1111-1111-111111111112",
 					RefreshInterval:  model.Duration(60 * time.Second),
@@ -908,7 +929,7 @@ var expectedConf = &Config{
 				&scaleway.SDConfig{
 					APIURL:           "https://api.scaleway.com",
 					AccessKey:        "SCWXXXXXXXXXXXXXXXXX",
-					HTTPClientConfig: config.HTTPClientConfig{FollowRedirects: true},
+					HTTPClientConfig: config.DefaultHTTPClientConfig,
 					Port:             80,
 					Project:          "11111111-1111-1111-1111-111111111112",
 					RefreshInterval:  model.Duration(60 * time.Second),
@@ -937,6 +958,7 @@ var expectedConf = &Config{
 							Credentials: "abcdef",
 						},
 						FollowRedirects: true,
+						EnableHTTP2:     true,
 					},
 					Port:            80,
 					TagSeparator:    linode.DefaultSDConfig.TagSeparator,
@@ -950,7 +972,7 @@ var expectedConf = &Config{
 			HonorTimestamps:  true,
 			ScrapeInterval:   model.Duration(15 * time.Second),
 			ScrapeTimeout:    DefaultGlobalConfig.ScrapeTimeout,
-			HTTPClientConfig: config.HTTPClientConfig{FollowRedirects: true},
+			HTTPClientConfig: config.DefaultHTTPClientConfig,
 			MetricsPath:      DefaultScrapeConfig.MetricsPath,
 			Scheme:           DefaultScrapeConfig.Scheme,
 			ServiceDiscoveryConfigs: discovery.Configs{
