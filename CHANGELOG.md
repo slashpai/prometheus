@@ -1,8 +1,10 @@
 # Changelog
 
-## 2.36.0 / 2022-05-30
+## 2.36.1 / 2022-06-09
 
-This Prometheus release uses go 1.18 and needs at least go1.17 going forward.
+* [BUGFIX] promtool: Add --lint-fatal option #10840
+
+## 2.36.0 / 2022-05-30
 
 * [FEATURE] Add lowercase and uppercase relabel action. #10641
 * [FEATURE] SD: Add IONOS Cloud integration. #10514
