@@ -438,10 +438,9 @@ func (wp *walSubsetProcessor) waitUntilIdle() {
 	}
 	wp.input <- []record.RefSample{}
 	for len(wp.input) != 0 {
-		time.Sleep(1 * time.Millisecond)
 		select {
 		case <-wp.output: // Allow output side to drain to avoid deadlock.
-		default:
+		case <-time.After(10 * time.Microsecond):
 		}
 	}
 }

@@ -36,5 +36,4 @@ crossbuild:
         - illumos
         - linux
         - netbsd
-        - openbsd
         - windows
