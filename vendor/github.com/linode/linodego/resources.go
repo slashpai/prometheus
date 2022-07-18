@@ -43,6 +43,8 @@ const (
 	longviewsubscriptionsName    = "longviewsubscriptions"
 	managedName                  = "managed"
 	mysqlName                    = "mysql"
+	mongoName                    = "mongo"
+	postgresName                 = "postgres"
 	nodebalancerconfigsName      = "nodebalancerconfigs"
 	nodebalancernodesName        = "nodebalancernodes"
 	nodebalancerStatsName        = "nodebalancerstats"
@@ -53,6 +55,7 @@ const (
 	objectStorageBucketCertsName = "objectstoragebucketcerts"
 	objectStorageClustersName    = "objectstorageclusters"
 	objectStorageKeysName        = "objectstoragekeys"
+	objectStorageName            = "objectstorage"
 	paymentsName                 = "payments"
 	profileName                  = "profile"
 	regionsName                  = "regions"
@@ -100,6 +103,8 @@ const (
 	longviewsubscriptionsEndpoint  = "longview/subscriptions"
 	managedEndpoint                = "managed"
 	mysqlEndpoint                  = "databases/mysql/instances"
+	mongoEndpoint                  = "databases/mongodb/instances"
+	postgresEndpoint               = "databases/postgresql/instances"
 	// @TODO we can't use these nodebalancer endpoints unless we include these templated fields
 	// The API seems inconsistent about including parent IDs in objects, (compare instance configs to nb configs)
 	// Parent IDs would be immutable for updates and are ignored in create requests ..
@@ -114,6 +119,7 @@ const (
 	objectStorageBucketCertsEndpoint = "object-storage/buckets/{{ .ID }}/{{ .SecondID }}/ssl"
 	objectStorageClustersEndpoint    = "object-storage/clusters"
 	objectStorageKeysEndpoint        = "object-storage/keys"
+	objectStorageEndpoint            = "object-storage"
 	paymentsEndpoint                 = "account/payments"
 	profileEndpoint                  = "profile"
 	regionsEndpoint                  = "regions"
