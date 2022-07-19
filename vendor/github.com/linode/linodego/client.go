@@ -16,6 +16,10 @@ import (
 )
 
 const (
+	// APIConfigEnvVar environment var to get path to Linode config
+	APIConfigEnvVar = "LINODE_CONFIG"
+	// APIConfigProfileEnvVar specifies the profile to use when loading from a Linode config
+	APIConfigProfileEnvVar = "LINODE_PROFILE"
 	// APIHost Linode API hostname
 	APIHost = "api.linode.com"
 	// APIHostVar environment var to check for alternate API URL
@@ -48,9 +52,13 @@ type Client struct {
 
 	millisecondsPerPoll time.Duration
 
-	baseURL    string
-	apiVersion string
-	apiProto   string
+	baseURL         string
+	apiVersion      string
+	apiProto        string
+	selectedProfile string
+	loadedProfile   string
+
+	configProfiles map[string]ConfigProfile
 
 	Account                *Resource
 	AccountSettings        *Resource
@@ -81,37 +89,45 @@ type Client struct {
 	// Deprecated: Please use LKENodePools
 	LKEClusterPools *Resource
 
-	LKENodePools             *Resource
-	LKEVersions              *Resource
-	Longview                 *Resource
-	LongviewClients          *Resource
-	LongviewSubscriptions    *Resource
-	Managed                  *Resource
-	DatabaseMySQLInstances   *Resource
-	NodeBalancerConfigs      *Resource
-	NodeBalancerNodes        *Resource
-	NodeBalancerStats        *Resource
-	NodeBalancers            *Resource
-	Notifications            *Resource
-	OAuthClients             *Resource
-	ObjectStorageBuckets     *Resource
-	ObjectStorageBucketCerts *Resource
-	ObjectStorageClusters    *Resource
-	ObjectStorageKeys        *Resource
-	Payments                 *Resource
-	Profile                  *Resource
-	Regions                  *Resource
-	SSHKeys                  *Resource
-	StackScripts             *Resource
-	Tags                     *Resource
-	Tickets                  *Resource
-	Token                    *Resource
-	Tokens                   *Resource
-	Types                    *Resource
-	UserGrants               *Resource
-	Users                    *Resource
-	VLANs                    *Resource
-	Volumes                  *Resource
+	LKENodePools              *Resource
+	LKEVersions               *Resource
+	Longview                  *Resource
+	LongviewClients           *Resource
+	LongviewSubscriptions     *Resource
+	Managed                   *Resource
+	DatabaseMySQLInstances    *Resource
+	DatabaseMongoInstances    *Resource
+	DatabasePostgresInstances *Resource
+	NodeBalancerConfigs       *Resource
+	NodeBalancerNodes         *Resource
+	NodeBalancerStats         *Resource
+	NodeBalancers             *Resource
+	Notifications             *Resource
+	OAuthClients              *Resource
+	ObjectStorageBuckets      *Resource
+	ObjectStorageBucketCerts  *Resource
+	ObjectStorageClusters     *Resource
+	ObjectStorageKeys         *Resource
+	ObjectStorage             *Resource
+	Payments                  *Resource
+	Profile                   *Resource
+	Regions                   *Resource
+	SSHKeys                   *Resource
+	StackScripts              *Resource
+	Tags                      *Resource
+	Tickets                   *Resource
+	Token                     *Resource
+	Tokens                    *Resource
+	Types                     *Resource
+	UserGrants                *Resource
+	Users                     *Resource
+	VLANs                     *Resource
+	Volumes                   *Resource
+}
+
+type EnvDefaults struct {
+	Token   string
+	Profile string
 }
 
 type Request = resty.Request
@@ -269,6 +285,12 @@ func (c *Client) SetPollDelay(delay time.Duration) *Client {
 	return c
 }
 
+// GetPollDelay gets the number of milliseconds to wait between events or status polls.
+// Affects all WaitFor* functions and retries.
+func (c *Client) GetPollDelay() time.Duration {
+	return c.millisecondsPerPoll
+}
+
 // Resource looks up a resource by name
 func (c Client) Resource(resourceName string) *Resource {
 	selectedResource, ok := c.resources[resourceName]
@@ -327,6 +349,73 @@ func NewClient(hc *http.Client) (client Client) {
 	return
 }
 
+// NewClientFromEnv creates a Client and initializes it with values
+// from the LINODE_CONFIG file and the LINODE_TOKEN environment variable.
+func NewClientFromEnv(hc *http.Client) (*Client, error) {
+	client := NewClient(hc)
+
+	// Users are expected to chain NewClient(...) and LoadConfig(...) to customize these options
+	configPath, err := resolveValidConfigPath()
+	if err != nil {
+		return nil, err
+	}
+
+	// Populate the token from the environment.
+	// Tokens should be first priority to maintain backwards compatibility
+	if token, ok := os.LookupEnv(APIEnvVar); ok && token != "" {
+		client.SetToken(token)
+		return &client, nil
+	}
+
+	if p, ok := os.LookupEnv(APIConfigEnvVar); ok {
+		configPath = p
+	} else if !ok && configPath == "" {
+		return nil, fmt.Errorf("no linode config file or token found")
+	}
+
+	configProfile := DefaultConfigProfile
+
+	if p, ok := os.LookupEnv(APIConfigProfileEnvVar); ok {
+		configProfile = p
+	}
+
+	client.selectedProfile = configProfile
+
+	// We should only load the config if the config file exists
+	if _, err := os.Stat(configPath); err != nil {
+		return nil, fmt.Errorf("error loading config file %s: %s", configPath, err)
+	}
+
+	err = client.preLoadConfig(configPath)
+	return &client, err
+}
+
+func (c *Client) preLoadConfig(configPath string) error {
+	if envDebug {
+		log.Printf("[INFO] Loading profile from %s\n", configPath)
+	}
+
+	if err := c.LoadConfig(&LoadConfigOptions{
+		Path:            configPath,
+		SkipLoadProfile: true,
+	}); err != nil {
+		return err
+	}
+
+	// We don't want to load the profile until the user is actually making requests
+	c.OnBeforeRequest(func(request *Request) error {
+		if c.loadedProfile != c.selectedProfile {
+			if err := c.UseProfile(c.selectedProfile); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+
+	return nil
+}
+
 // nolint
 func addResources(client *Client) {
 	resources := map[string]*Resource{
@@ -362,7 +451,9 @@ func addResources(client *Client) {
 		longviewclientsName:          NewResource(client, longviewclientsName, longviewclientsEndpoint, false, LongviewClient{}, LongviewClientsPagedResponse{}),
 		longviewsubscriptionsName:    NewResource(client, longviewsubscriptionsName, longviewsubscriptionsEndpoint, false, LongviewSubscription{}, LongviewSubscriptionsPagedResponse{}),
 		managedName:                  NewResource(client, managedName, managedEndpoint, false, nil, nil), // really?
-		mysqlName:                    NewResource(client, mysqlName, mysqlEndpoint, false, Database{}, nil),
+		mysqlName:                    NewResource(client, mysqlName, mysqlEndpoint, false, MySQLDatabase{}, MySQLDatabasesPagedResponse{}),
+		mongoName:                    NewResource(client, mongoName, mongoEndpoint, false, MongoDatabase{}, MongoDatabasesPagedResponse{}),
+		postgresName:                 NewResource(client, postgresName, postgresEndpoint, false, PostgresDatabase{}, PostgresDatabasesPagedResponse{}),
 		nodebalancerconfigsName:      NewResource(client, nodebalancerconfigsName, nodebalancerconfigsEndpoint, true, NodeBalancerConfig{}, NodeBalancerConfigsPagedResponse{}),
 		nodebalancernodesName:        NewResource(client, nodebalancernodesName, nodebalancernodesEndpoint, true, NodeBalancerNode{}, NodeBalancerNodesPagedResponse{}),
 		nodebalancerStatsName:        NewResource(client, nodebalancerStatsName, nodebalancerStatsEndpoint, true, NodeBalancerStats{}, nil),
@@ -373,6 +464,7 @@ func addResources(client *Client) {
 		objectStorageBucketCertsName: NewResource(client, objectStorageBucketCertsName, objectStorageBucketCertsEndpoint, true, ObjectStorageBucketCert{}, nil),
 		objectStorageClustersName:    NewResource(client, objectStorageClustersName, objectStorageClustersEndpoint, false, ObjectStorageCluster{}, ObjectStorageClustersPagedResponse{}),
 		objectStorageKeysName:        NewResource(client, objectStorageKeysName, objectStorageKeysEndpoint, false, ObjectStorageKey{}, ObjectStorageKeysPagedResponse{}),
+		objectStorageName:            NewResource(client, objectStorageName, objectStorageEndpoint, false, nil, nil),
 		paymentsName:                 NewResource(client, paymentsName, paymentsEndpoint, false, Payment{}, PaymentsPagedResponse{}),
 		profileName:                  NewResource(client, profileName, profileEndpoint, false, nil, nil), // really?
 		regionsName:                  NewResource(client, regionsName, regionsEndpoint, false, Region{}, RegionsPagedResponse{}),
@@ -420,6 +512,8 @@ func addResources(client *Client) {
 	client.LongviewSubscriptions = resources[longviewsubscriptionsName]
 	client.Managed = resources[managedName]
 	client.DatabaseMySQLInstances = resources[mysqlName]
+	client.DatabaseMongoInstances = resources[mongoName]
+	client.DatabasePostgresInstances = resources[postgresName]
 	client.NodeBalancerConfigs = resources[nodebalancerconfigsName]
 	client.NodeBalancerNodes = resources[nodebalancernodesName]
 	client.NodeBalancerStats = resources[nodebalancerStatsName]
@@ -430,6 +524,7 @@ func addResources(client *Client) {
 	client.ObjectStorageBucketCerts = resources[objectStorageBucketCertsName]
 	client.ObjectStorageClusters = resources[objectStorageClustersName]
 	client.ObjectStorageKeys = resources[objectStorageKeysName]
+	client.ObjectStorage = resources[objectStorageName]
 	client.Payments = resources[paymentsName]
 	client.Profile = resources[profileName]
 	client.Regions = resources[regionsName]
