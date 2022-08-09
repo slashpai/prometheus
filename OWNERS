@@ -4,19 +4,19 @@ reviewers:
 - simonpasquier
 - raptorsun
 - slashpai
-- arajkumar
 - sthaha
 - jan--f
 - JoaoBraveCoding
+- juanrh
 
 approvers:
 - simonpasquier
 - raptorsun
 - slashpai
-- arajkumar
 - sthaha
 - jan--f
 - JoaoBraveCoding
+- juanrh
 
 emeritus_approvers:
 - PhilipGough
@@ -28,3 +28,4 @@ emeritus_approvers:
 - LiliC
 - s-urbaniak
 - paulfantom
+- arajkumar
