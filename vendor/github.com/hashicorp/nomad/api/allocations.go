@@ -2,16 +2,17 @@ package api
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"io"
 	"sort"
+	"strings"
 	"time"
 )
 
 var (
 	// NodeDownErr marks an operation as not able to complete since the node is
 	// down.
-	NodeDownErr = fmt.Errorf("node down")
+	NodeDownErr = errors.New("node down")
 )
 
 const (
@@ -26,6 +27,10 @@ const (
 	AllocClientStatusComplete = "complete"
 	AllocClientStatusFailed   = "failed"
 	AllocClientStatusLost     = "lost"
+)
+
+const (
+	AllocRestartReasonWithinPolicy = "Restart within policy"
 )
 
 // Allocations is used to query the alloc-related endpoints.
@@ -101,8 +106,7 @@ func (a *Allocations) Exec(ctx context.Context,
 
 func (a *Allocations) Stats(alloc *Allocation, q *QueryOptions) (*AllocResourceUsage, error) {
 	var resp AllocResourceUsage
-	path := fmt.Sprintf("/v1/client/allocation/%s/stats", alloc.ID)
-	_, err := a.client.query(path, &resp, q)
+	_, err := a.client.query("/v1/client/allocation/"+alloc.ID+"/stats", &resp, q)
 	return &resp, err
 }
 
@@ -488,4 +492,13 @@ type ExecStreamingOutput struct {
 
 	Exited bool                     `json:"exited,omitempty"`
 	Result *ExecStreamingExitResult `json:"result,omitempty"`
+}
+
+func AllocSuffix(name string) string {
+	idx := strings.LastIndex(name, "[")
+	if idx == -1 {
+		return ""
+	}
+	suffix := name[idx:]
+	return suffix
 }

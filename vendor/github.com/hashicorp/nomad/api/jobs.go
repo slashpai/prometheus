@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"sort"
@@ -42,6 +43,16 @@ const (
 	// RegisterEnforceIndexErrPrefix is the prefix to use in errors caused by
 	// enforcing the job modify index during registers.
 	RegisterEnforceIndexErrPrefix = "Enforcing job modify index"
+)
+
+const (
+	// JobPeriodicLaunchSuffix is the string appended to the periodic jobs ID
+	// when launching derived instances of it.
+	JobPeriodicLaunchSuffix = "/periodic-"
+
+	// JobDispatchLaunchSuffix is the string appended to the parameterized job's ID
+	// when dispatching instances of it.
+	JobDispatchLaunchSuffix = "/dispatch-"
 )
 
 // Jobs is used to access the job-specific endpoints.
@@ -288,7 +299,7 @@ func (j *Jobs) Evaluations(jobID string, q *QueryOptions) ([]*Evaluation, *Query
 // eventually GC'ed from the system. Most callers should not specify purge.
 func (j *Jobs) Deregister(jobID string, purge bool, q *WriteOptions) (string, *WriteMeta, error) {
 	var resp JobDeregisterResponse
-	wm, err := j.client.delete(fmt.Sprintf("/v1/job/%v?purge=%t", url.PathEscape(jobID), purge), &resp, q)
+	wm, err := j.client.delete(fmt.Sprintf("/v1/job/%v?purge=%t", url.PathEscape(jobID), purge), nil, &resp, q)
 	if err != nil {
 		return "", nil, err
 	}
@@ -334,7 +345,7 @@ func (j *Jobs) DeregisterOpts(jobID string, opts *DeregisterOptions, q *WriteOpt
 			opts.Purge, opts.Global, opts.EvalPriority, opts.NoShutdownDelay)
 	}
 
-	wm, err := j.client.delete(endpoint, &resp, q)
+	wm, err := j.client.delete(endpoint, nil, &resp, q)
 	if err != nil {
 		return "", nil, err
 	}
@@ -390,7 +401,7 @@ func (j *Jobs) Plan(job *Job, diff bool, q *WriteOptions) (*JobPlanResponse, *Wr
 
 func (j *Jobs) PlanOpts(job *Job, opts *PlanOptions, q *WriteOptions) (*JobPlanResponse, *WriteMeta, error) {
 	if job == nil {
-		return nil, nil, fmt.Errorf("must pass non-nil job")
+		return nil, nil, errors.New("must pass non-nil job")
 	}
 
 	// Setup the request
