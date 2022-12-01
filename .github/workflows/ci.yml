@@ -1,6 +1,6 @@
 ---
 name: CI
-on:
+on:  # yamllint disable-line rule:truthy
   pull_request:
   push:
 jobs:
@@ -16,6 +16,7 @@ jobs:
       - uses: ./.github/actions/setup_environment
       - run: make GO_ONLY=1 SKIP_GOLANGCI_LINT=1
       - run: go test ./tsdb/ -test.tsdb-isolation=false
+      - run: GOARCH=386 go test ./cmd/prometheus
       - run: make -C documentation/examples/remote_storage
       - run: make -C documentation/examples
       - uses: ./.github/actions/check_proto
@@ -140,7 +141,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get -y install libsnmp-dev
         if: github.repository == 'prometheus/snmp_exporter'
       - name: Lint
-        uses: golangci/golangci-lint-action@v3.2.0
+        uses: golangci/golangci-lint-action@v3.3.0
         with:
           version: v1.49.0
   fuzzing:
@@ -188,7 +189,7 @@ jobs:
         with:
           node-version-file: "web/ui/.nvmrc"
           registry-url: "https://registry.npmjs.org"
-      - uses: actions/cache@v3.0.8
+      - uses: actions/cache@v3.0.9
         with:
           path: ~/.npm
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
