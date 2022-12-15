@@ -17,9 +17,9 @@
 @lezer/lr@1.2.3
 @nexucis/fuzzy@0.4.1
 @nexucis/kvsearch@0.8.1
-@prometheus-io/app@0.40.6
-@prometheus-io/codemirror-promql@0.40.6
-@prometheus-io/lezer-promql@0.40.6
+@prometheus-io/app@0.40.7
+@prometheus-io/codemirror-promql@0.40.7
+@prometheus-io/lezer-promql@0.40.7
 @types/body-parser@1.19.2
 @types/connect@3.4.35
 @types/express-serve-static-core@4.17.31
