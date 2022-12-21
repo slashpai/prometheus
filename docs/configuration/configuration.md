@@ -208,6 +208,10 @@ tls_config:
 
 # Optional proxy URL.
 [ proxy_url: <string> ]
+# Specifies headers to send to proxies during CONNECT requests.
+[ proxy_connect_headers:
+  [ <string>: [<secret>, ...] ] ]
+
 
 # List of Azure service discovery configurations.
 azure_sd_configs:
@@ -389,6 +393,11 @@ A `tls_config` allows configuring TLS connections.
 # If unset, Prometheus will use Go default minimum version, which is TLS 1.2.
 # See MinVersion in https://pkg.go.dev/crypto/tls#Config.
 [ min_version: <string> ]
+# Maximum acceptable TLS version. Accepted values: TLS10 (TLS 1.0), TLS11 (TLS
+# 1.1), TLS12 (TLS 1.2), TLS13 (TLS 1.3).
+# If unset, Prometheus will use Go default maximum version, which is TLS 1.3.
+# See MaxVersion in https://pkg.go.dev/crypto/tls#Config.
+[ max_version: <string> ]
 ```
 
 ### `<oauth2>`
@@ -422,6 +431,9 @@ tls_config:
 
 # Optional proxy URL.
 [ proxy_url: <string> ]
+# Specifies headers to send to proxies during CONNECT requests.
+[ proxy_connect_headers:
+  [ <string>: [<secret>, ...] ] ]
 ```
 
 ### `<azure_sd_config>`
@@ -500,6 +512,9 @@ oauth2:
 
 # Optional proxy URL.
 [ proxy_url: <string> ]
+# Specifies headers to send to proxies during CONNECT requests.
+[ proxy_connect_headers:
+  [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
 [ follow_redirects: <boolean> | default = true ]
@@ -602,6 +617,9 @@ oauth2:
 
 # Optional proxy URL.
 [ proxy_url: <string> ]
+# Specifies headers to send to proxies during CONNECT requests.
+[ proxy_connect_headers:
+  [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
 [ follow_redirects: <boolean> | default = true ]
@@ -680,6 +698,9 @@ oauth2:
 
 # Optional proxy URL.
 [ proxy_url: <string> ]
+# Specifies headers to send to proxies during CONNECT requests.
+[ proxy_connect_headers:
+  [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
 [ follow_redirects: <boolean> | default = true ]
@@ -729,6 +750,9 @@ host: <string>
 
 # Optional proxy URL.
 [ proxy_url: <string> ]
+# Specifies headers to send to proxies during CONNECT requests.
+[ proxy_connect_headers:
+  [ <string>: [<secret>, ...] ] ]
 
 # TLS configuration.
 tls_config:
@@ -895,6 +919,9 @@ host: <string>
 
 # Optional proxy URL.
 [ proxy_url: <string> ]
+# Specifies headers to send to proxies during CONNECT requests.
+[ proxy_connect_headers:
+  [ <string>: [<secret>, ...] ] ]
 
 # TLS configuration.
 tls_config:
@@ -1064,6 +1091,48 @@ See below for the configuration options for EC2 discovery:
 filters:
   [ - name: <string>
       values: <string>, [...] ]
+
+# Authentication information used to authenticate to the EC2 API.
+# Note that `basic_auth`, `authorization` and `oauth2` options are
+# mutually exclusive.
+# `password` and `password_file` are mutually exclusive.
+
+# Optional HTTP basic authentication information, currently not supported by AWS.
+basic_auth:
+  [ username: <string> ]
+  [ password: <secret> ]
+  [ password_file: <string> ]
+
+# Optional `Authorization` header configuration, currently not supported by AWS.
+authorization:
+  # Sets the authentication type.
+  [ type: <string> | default: Bearer ]
+  # Sets the credentials. It is mutually exclusive with
+  # `credentials_file`.
+  [ credentials: <secret> ]
+  # Sets the credentials to the credentials read from the configured file.
+  # It is mutuall exclusive with `credentials`.
+  [ credentials_file: <filename> ]
+
+# Optional OAuth 2.0 configuration, currently not supported by AWS.
+oauth2:
+  [ <oauth2> ]
+
+# Optional proxy URL.
+[ proxy_url: <string> ]
+# Specifies headers to send to proxies during CONNECT requests.
+[ proxy_connect_headers:
+  [ <string>: [<secret>, ...] ] ]
+
+# Configure whether HTTP requests follow HTTP 3xx redirects.
+[ follow_redirects: <boolean> | default = true ]
+
+# Whether to enable HTTP2.
+[ enable_http2: <bool> | default: true ]
+
+# TLS configuration.
+tls_config:
+  [ <tls_config> ]
 ```
 
 The [relabeling phase](#relabel_config) is the preferred and more powerful
@@ -1320,6 +1389,9 @@ oauth2:
 
 # Optional proxy URL.
 [ proxy_url: <string> ]
+# Specifies headers to send to proxies during CONNECT requests.
+[ proxy_connect_headers:
+  [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
 [ follow_redirects: <boolean> | default = true ]
@@ -1476,7 +1548,6 @@ The labels below are only available for targets with `role` set to `hcloud`:
 * `__meta_hetzner_hcloud_image_description`: the description of the server image
 * `__meta_hetzner_hcloud_image_os_flavor`: the OS flavor of the server image
 * `__meta_hetzner_hcloud_image_os_version`: the OS version of the server image
-* `__meta_hetzner_hcloud_image_description`: the description of the server image
 * `__meta_hetzner_hcloud_datacenter_location`: the location of the server
 * `__meta_hetzner_hcloud_datacenter_location_network_zone`: the network zone of the server
 * `__meta_hetzner_hcloud_server_type`: the type of the server
@@ -1529,6 +1600,9 @@ oauth2:
 
 # Optional proxy URL.
 [ proxy_url: <string> ]
+# Specifies headers to send to proxies during CONNECT requests.
+[ proxy_connect_headers:
+  [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
 [ follow_redirects: <boolean> | default = true ]
@@ -1614,6 +1688,9 @@ oauth2:
 
 # Optional proxy URL.
 [ proxy_url: <string> ]
+# Specifies headers to send to proxies during CONNECT requests.
+[ proxy_connect_headers:
+  [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
 [ follow_redirects: <boolean> | default = true ]
@@ -1688,6 +1765,9 @@ oauth2:
 
 # Optional proxy URL.
 [ proxy_url: <string> ]
+# Specifies headers to send to proxies during CONNECT requests.
+[ proxy_connect_headers:
+  [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
 [ follow_redirects: <boolean> | default = true ]
@@ -1901,6 +1981,9 @@ oauth2:
 
 # Optional proxy URL.
 [ proxy_url: <string> ]
+# Specifies headers to send to proxies during CONNECT requests.
+[ proxy_connect_headers:
+  [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
 [ follow_redirects: <boolean> | default = true ]
@@ -1978,6 +2061,9 @@ server: <string>
 
 # Optional proxy URL.
 [ proxy_url: <string> ]
+# Specifies headers to send to proxies during CONNECT requests.
+[ proxy_connect_headers:
+  [ <string>: [<secret>, ...] ] ]
 
 # TLS configuration.
 tls_config:
@@ -2067,6 +2153,48 @@ See below for the configuration options for Lightsail discovery:
 # The port to scrape metrics from. If using the public IP address, this must
 # instead be specified in the relabeling rule.
 [ port: <int> | default = 80 ]
+
+# Authentication information used to authenticate to the Lightsail API.
+# Note that `basic_auth`, `authorization` and `oauth2` options are
+# mutually exclusive.
+# `password` and `password_file` are mutually exclusive.
+
+# Optional HTTP basic authentication information, currently not supported by AWS.
+basic_auth:
+  [ username: <string> ]
+  [ password: <secret> ]
+  [ password_file: <string> ]
+
+# Optional `Authorization` header configuration, currently not supported by AWS.
+authorization:
+  # Sets the authentication type.
+  [ type: <string> | default: Bearer ]
+  # Sets the credentials. It is mutually exclusive with
+  # `credentials_file`.
+  [ credentials: <secret> ]
+  # Sets the credentials to the credentials read from the configured file.
+  # It is mutuall exclusive with `credentials`.
+  [ credentials_file: <filename> ]
+
+# Optional OAuth 2.0 configuration, currently not supported by AWS.
+oauth2:
+  [ <oauth2> ]
+
+# Optional proxy URL.
+[ proxy_url: <string> ]
+# Specifies headers to send to proxies during CONNECT requests.
+[ proxy_connect_headers:
+  [ <string>: [<secret>, ...] ] ]
+
+# Configure whether HTTP requests follow HTTP 3xx redirects.
+[ follow_redirects: <boolean> | default = true ]
+
+# Whether to enable HTTP2.
+[ enable_http2: <bool> | default: true ]
+
+# TLS configuration.
+tls_config:
+  [ <tls_config> ]
 ```
 
 ### `<linode_sd_config>`
@@ -2129,6 +2257,9 @@ oauth2:
 
 # Optional proxy URL.
 [ proxy_url: <string> ]
+# Specifies headers to send to proxies during CONNECT requests.
+[ proxy_connect_headers:
+  [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
 [ follow_redirects: <boolean> | default = true ]
@@ -2228,6 +2359,9 @@ tls_config:
 
 # Optional proxy URL.
 [ proxy_url: <string> ]
+# Specifies headers to send to proxies during CONNECT requests.
+[ proxy_connect_headers:
+  [ <string>: [<secret>, ...] ] ]
 ```
 
 By default every app listed in Marathon will be scraped by Prometheus. If not all
@@ -2318,6 +2452,9 @@ oauth2:
 
 # Optional proxy URL.
 [ proxy_url: <string> ]
+# Specifies headers to send to proxies during CONNECT requests.
+[ proxy_connect_headers:
+  [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
 [ follow_redirects: <boolean> | default = true ]
@@ -2495,6 +2632,9 @@ tls_config:
 
 # Optional proxy URL.
 [ proxy_url: <string> ]
+# Specifies headers to send to proxies during CONNECT requests.
+[ proxy_connect_headers:
+  [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
 [ follow_redirects: <boolean> | default = true ]
@@ -2611,6 +2751,9 @@ tags_filter:
 
 # Optional proxy URL.
 [ proxy_url: <string> ]
+# Specifies headers to send to proxies during CONNECT requests.
+[ proxy_connect_headers:
+  [ <string>: [<secret>, ...] ] ]
 
 # TLS configuration.
 tls_config:
@@ -2678,6 +2821,9 @@ oauth2:
 
 # Optional proxy URL.
 [ proxy_url: <string> ]
+# Specifies headers to send to proxies during CONNECT requests.
+[ proxy_connect_headers:
+  [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
 [ follow_redirects: <boolean> | default = true ]
@@ -2751,6 +2897,9 @@ oauth2:
 
 # Optional proxy URL.
 [ proxy_url: <string> ]
+# Specifies headers to send to proxies during CONNECT requests.
+[ proxy_connect_headers:
+  [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
 [ follow_redirects: <boolean> | default = true ]
@@ -2857,6 +3006,8 @@ anchored on both ends. To un-anchor the regex, use `.*<regex>.*`.
 * `uppercase`: Maps the concatenated `source_labels` to their upper case.
 * `keep`: Drop targets for which `regex` does not match the concatenated `source_labels`.
 * `drop`: Drop targets for which `regex` matches the concatenated `source_labels`.
+* `keepequal`: Drop targets for which the concatenated `source_labels` do not match `target_label`.
+* `dropequal`: Drop targets for which the concatenated `source_labels` do match `target_label`.
 * `hashmod`: Set `target_label` to the `modulus` of a hash of the concatenated `source_labels`.
 * `labelmap`: Match `regex` against all source label names, not just those specified in `source_labels`. Then
    copy the values of the matching labels  to label names given by `replacement` with match
@@ -2942,6 +3093,9 @@ tls_config:
 
 # Optional proxy URL.
 [ proxy_url: <string> ]
+# Specifies headers to send to proxies during CONNECT requests.
+[ proxy_connect_headers:
+  [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
 [ follow_redirects: <boolean> | default = true ]
@@ -3151,6 +3305,9 @@ tls_config:
 
 # Optional proxy URL.
 [ proxy_url: <string> ]
+# Specifies headers to send to proxies during CONNECT requests.
+[ proxy_connect_headers:
+  [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
 [ follow_redirects: <boolean> | default = true ]
@@ -3255,6 +3412,9 @@ tls_config:
 
 # Optional proxy URL.
 [ proxy_url: <string> ]
+# Specifies headers to send to proxies during CONNECT requests.
+[ proxy_connect_headers:
+  [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
 [ follow_redirects: <boolean> | default = true ]
