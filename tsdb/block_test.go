@@ -74,10 +74,20 @@ func TestSetCompactionFailed(t *testing.T) {
 func TestCreateBlock(t *testing.T) {
 	tmpdir := t.TempDir()
 	b, err := OpenBlock(nil, createBlock(t, tmpdir, genSeries(1, 1, 0, 10)), nil)
-	if err == nil {
-		require.NoError(t, b.Close())
-	}
 	require.NoError(t, err)
+	require.NoError(t, b.Close())
+}
+
+func BenchmarkOpenBlock(b *testing.B) {
+	tmpdir := b.TempDir()
+	blockDir := createBlock(b, tmpdir, genSeries(1e6, 20, 0, 10))
+	b.Run("benchmark", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			block, err := OpenBlock(nil, blockDir, nil)
+			require.NoError(b, err)
+			require.NoError(b, block.Close())
+		}
+	})
 }
 
 func TestCorruptedChunk(t *testing.T) {
@@ -132,7 +142,7 @@ func TestCorruptedChunk(t *testing.T) {
 				// Truncate one byte after the segment header.
 				require.NoError(t, f.Truncate(chunks.SegmentHeaderSize+1))
 			},
-			iterErr: errors.New("cannot populate chunk 8: segment doesn't include enough bytes to read the chunk size data field - required:13, available:9"),
+			iterErr: errors.New("cannot populate chunk 8 from block 00000000000000000000000000: segment doesn't include enough bytes to read the chunk size data field - required:13, available:9"),
 		},
 		{
 			name: "chunk not enough bytes to read the data",
@@ -141,7 +151,7 @@ func TestCorruptedChunk(t *testing.T) {
 				require.NoError(t, err)
 				require.NoError(t, f.Truncate(fi.Size()-1))
 			},
-			iterErr: errors.New("cannot populate chunk 8: segment doesn't include enough bytes to read the chunk - required:26, available:25"),
+			iterErr: errors.New("cannot populate chunk 8 from block 00000000000000000000000000: segment doesn't include enough bytes to read the chunk - required:26, available:25"),
 		},
 		{
 			name: "checksum mismatch",
@@ -159,7 +169,7 @@ func TestCorruptedChunk(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, n, 1)
 			},
-			iterErr: errors.New("cannot populate chunk 8: checksum mismatch expected:cfc0526c, actual:34815eae"),
+			iterErr: errors.New("cannot populate chunk 8 from block 00000000000000000000000000: checksum mismatch expected:cfc0526c, actual:34815eae"),
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -668,7 +678,7 @@ func genSeriesFromSampleGenerator(totalSeries, labelCount int, mint, maxt, step 
 		for j := 1; len(lbls) < labelCount; j++ {
 			lbls[defaultLabelName+strconv.Itoa(j)] = defaultLabelValue + strconv.Itoa(j)
 		}
-		samples := make([]tsdbutil.Sample, 0, maxt-mint+1)
+		samples := make([]tsdbutil.Sample, 0, (maxt-mint)/step+1)
 		for t := mint; t < maxt; t += step {
 			samples = append(samples, generator(t))
 		}
