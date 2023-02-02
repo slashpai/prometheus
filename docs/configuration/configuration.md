@@ -209,7 +209,7 @@ tls_config:
 # Optional proxy URL.
 [ proxy_url: <string> ]
 # Specifies headers to send to proxies during CONNECT requests.
-[ proxy_connect_headers:
+[ proxy_connect_header:
   [ <string>: [<secret>, ...] ] ]
 
 
@@ -432,7 +432,7 @@ tls_config:
 # Optional proxy URL.
 [ proxy_url: <string> ]
 # Specifies headers to send to proxies during CONNECT requests.
-[ proxy_connect_headers:
+[ proxy_connect_header:
   [ <string>: [<secret>, ...] ] ]
 ```
 
@@ -452,6 +452,7 @@ The following meta labels are available on targets during [relabeling](#relabel_
 * `__meta_azure_machine_resource_group`: the machine's resource group
 * `__meta_azure_machine_tag_<tagname>`: each tag value of the machine
 * `__meta_azure_machine_scale_set`: the name of the scale set which the vm is part of (this value is only set if you are using a [scale set](https://docs.microsoft.com/en-us/azure/virtual-machine-scale-sets/))
+* `__meta_azure_machine_size`: the machine size
 * `__meta_azure_subscription_id`: the subscription ID
 * `__meta_azure_tenant_id`: the tenant ID
 
@@ -513,7 +514,7 @@ oauth2:
 # Optional proxy URL.
 [ proxy_url: <string> ]
 # Specifies headers to send to proxies during CONNECT requests.
-[ proxy_connect_headers:
+[ proxy_connect_header:
   [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
@@ -618,7 +619,7 @@ oauth2:
 # Optional proxy URL.
 [ proxy_url: <string> ]
 # Specifies headers to send to proxies during CONNECT requests.
-[ proxy_connect_headers:
+[ proxy_connect_header:
   [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
@@ -699,7 +700,7 @@ oauth2:
 # Optional proxy URL.
 [ proxy_url: <string> ]
 # Specifies headers to send to proxies during CONNECT requests.
-[ proxy_connect_headers:
+[ proxy_connect_header:
   [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
@@ -751,7 +752,7 @@ host: <string>
 # Optional proxy URL.
 [ proxy_url: <string> ]
 # Specifies headers to send to proxies during CONNECT requests.
-[ proxy_connect_headers:
+[ proxy_connect_header:
   [ <string>: [<secret>, ...] ] ]
 
 # TLS configuration.
@@ -920,7 +921,7 @@ host: <string>
 # Optional proxy URL.
 [ proxy_url: <string> ]
 # Specifies headers to send to proxies during CONNECT requests.
-[ proxy_connect_headers:
+[ proxy_connect_header:
   [ <string>: [<secret>, ...] ] ]
 
 # TLS configuration.
@@ -1121,7 +1122,7 @@ oauth2:
 # Optional proxy URL.
 [ proxy_url: <string> ]
 # Specifies headers to send to proxies during CONNECT requests.
-[ proxy_connect_headers:
+[ proxy_connect_header:
   [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
@@ -1390,7 +1391,7 @@ oauth2:
 # Optional proxy URL.
 [ proxy_url: <string> ]
 # Specifies headers to send to proxies during CONNECT requests.
-[ proxy_connect_headers:
+[ proxy_connect_header:
   [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
@@ -1601,7 +1602,7 @@ oauth2:
 # Optional proxy URL.
 [ proxy_url: <string> ]
 # Specifies headers to send to proxies during CONNECT requests.
-[ proxy_connect_headers:
+[ proxy_connect_header:
   [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
@@ -1689,7 +1690,7 @@ oauth2:
 # Optional proxy URL.
 [ proxy_url: <string> ]
 # Specifies headers to send to proxies during CONNECT requests.
-[ proxy_connect_headers:
+[ proxy_connect_header:
   [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
@@ -1766,7 +1767,7 @@ oauth2:
 # Optional proxy URL.
 [ proxy_url: <string> ]
 # Specifies headers to send to proxies during CONNECT requests.
-[ proxy_connect_headers:
+[ proxy_connect_header:
   [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
@@ -1855,6 +1856,7 @@ Available meta labels:
 * `__meta_kubernetes_pod_annotationpresent_<annotationname>`: `true` for each annotation from the pod object.
 * `__meta_kubernetes_pod_container_init`: `true` if the container is an [InitContainer](https://kubernetes.io/docs/concepts/workloads/pods/init-containers/)
 * `__meta_kubernetes_pod_container_name`: Name of the container the target address points to.
+* `__meta_kubernetes_pod_container_id`: ID of the container the target address points to. The ID is in the form `<type>://<container_id>`.
 * `__meta_kubernetes_pod_container_image`: The image the container is using.
 * `__meta_kubernetes_pod_container_port_name`: Name of the container port.
 * `__meta_kubernetes_pod_container_port_number`: Number of the container port.
@@ -1908,6 +1910,8 @@ Available meta labels:
   * `__meta_kubernetes_endpointslice_address_target_name`: Name of referenced object.
   * `__meta_kubernetes_endpointslice_address_type`: The ip protocol family of the address of the target.
   * `__meta_kubernetes_endpointslice_endpoint_conditions_ready`:  Set to `true` or `false` for the referenced endpoint's ready state.
+  * `__meta_kubernetes_endpointslice_endpoint_conditions_serving`:  Set to `true` or `false` for the referenced endpoint's serving state.
+  * `__meta_kubernetes_endpointslice_endpoint_conditions_terminating`:  Set to `true` or `false` for the referenced endpoint's terminating state.
   * `__meta_kubernetes_endpointslice_endpoint_topology_kubernetes_io_hostname`:  Name of the node hosting the referenced endpoint.
   * `__meta_kubernetes_endpointslice_endpoint_topology_present_kubernetes_io_hostname`: Flag that shows if the referenced object has a kubernetes.io/hostname annotation.
   * `__meta_kubernetes_endpointslice_port`: Port of the referenced endpoint.
@@ -1982,7 +1986,7 @@ oauth2:
 # Optional proxy URL.
 [ proxy_url: <string> ]
 # Specifies headers to send to proxies during CONNECT requests.
-[ proxy_connect_headers:
+[ proxy_connect_header:
   [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
@@ -2062,7 +2066,7 @@ server: <string>
 # Optional proxy URL.
 [ proxy_url: <string> ]
 # Specifies headers to send to proxies during CONNECT requests.
-[ proxy_connect_headers:
+[ proxy_connect_header:
   [ <string>: [<secret>, ...] ] ]
 
 # TLS configuration.
@@ -2183,7 +2187,7 @@ oauth2:
 # Optional proxy URL.
 [ proxy_url: <string> ]
 # Specifies headers to send to proxies during CONNECT requests.
-[ proxy_connect_headers:
+[ proxy_connect_header:
   [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
@@ -2258,7 +2262,7 @@ oauth2:
 # Optional proxy URL.
 [ proxy_url: <string> ]
 # Specifies headers to send to proxies during CONNECT requests.
-[ proxy_connect_headers:
+[ proxy_connect_header:
   [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
@@ -2360,7 +2364,7 @@ tls_config:
 # Optional proxy URL.
 [ proxy_url: <string> ]
 # Specifies headers to send to proxies during CONNECT requests.
-[ proxy_connect_headers:
+[ proxy_connect_header:
   [ <string>: [<secret>, ...] ] ]
 ```
 
@@ -2417,7 +2421,6 @@ The following meta labels are available on targets during [relabeling](#relabel_
 # The information to access the Nomad API. It is to be defined
 # as the Nomad documentation requires.
 [ allow_stale: <boolean> | default = true ]
-[ datacenter: <string> ]
 [ namespace: <string> | default = default ]
 [ refresh_interval: <duration> | default = 60s ]
 [ region: <string> | default = global ]
@@ -2453,7 +2456,7 @@ oauth2:
 # Optional proxy URL.
 [ proxy_url: <string> ]
 # Specifies headers to send to proxies during CONNECT requests.
-[ proxy_connect_headers:
+[ proxy_connect_header:
   [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
@@ -2633,7 +2636,7 @@ tls_config:
 # Optional proxy URL.
 [ proxy_url: <string> ]
 # Specifies headers to send to proxies during CONNECT requests.
-[ proxy_connect_headers:
+[ proxy_connect_header:
   [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
@@ -2752,7 +2755,7 @@ tags_filter:
 # Optional proxy URL.
 [ proxy_url: <string> ]
 # Specifies headers to send to proxies during CONNECT requests.
-[ proxy_connect_headers:
+[ proxy_connect_header:
   [ <string>: [<secret>, ...] ] ]
 
 # TLS configuration.
@@ -2822,7 +2825,7 @@ oauth2:
 # Optional proxy URL.
 [ proxy_url: <string> ]
 # Specifies headers to send to proxies during CONNECT requests.
-[ proxy_connect_headers:
+[ proxy_connect_header:
   [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
@@ -2898,7 +2901,7 @@ oauth2:
 # Optional proxy URL.
 [ proxy_url: <string> ]
 # Specifies headers to send to proxies during CONNECT requests.
-[ proxy_connect_headers:
+[ proxy_connect_header:
   [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
@@ -3094,7 +3097,7 @@ tls_config:
 # Optional proxy URL.
 [ proxy_url: <string> ]
 # Specifies headers to send to proxies during CONNECT requests.
-[ proxy_connect_headers:
+[ proxy_connect_header:
   [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
@@ -3306,7 +3309,7 @@ tls_config:
 # Optional proxy URL.
 [ proxy_url: <string> ]
 # Specifies headers to send to proxies during CONNECT requests.
-[ proxy_connect_headers:
+[ proxy_connect_header:
   [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
@@ -3413,7 +3416,7 @@ tls_config:
 # Optional proxy URL.
 [ proxy_url: <string> ]
 # Specifies headers to send to proxies during CONNECT requests.
-[ proxy_connect_headers:
+[ proxy_connect_header:
   [ <string>: [<secret>, ...] ] ]
 
 # Configure whether HTTP requests follow HTTP 3xx redirects.
