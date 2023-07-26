@@ -447,6 +447,9 @@ func (j *Jobs) PlanOpts(job *Job, opts *PlanOptions, q *WriteOptions) (*JobPlanR
 	if job == nil {
 		return nil, nil, errors.New("must pass non-nil job")
 	}
+	if job.ID == nil {
+		return nil, nil, errors.New("job is missing ID")
+	}
 
 	// Setup the request
 	req := &JobPlanRequest{
@@ -1019,7 +1022,7 @@ func (j *Job) Canonicalize() {
 		j.Region = pointerOf(GlobalRegion)
 	}
 	if j.NodePool == nil {
-		j.NodePool = pointerOf(NodePoolDefault)
+		j.NodePool = pointerOf("")
 	}
 	if j.Type == nil {
 		j.Type = pointerOf("service")
