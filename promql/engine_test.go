@@ -49,6 +49,7 @@ func TestQueryConcurrency(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(dir)
 	queryTracker := NewActiveQueryTracker(dir, maxConcurrency, nil)
+	t.Cleanup(queryTracker.Close)
 
 	opts := EngineOpts{
 		Logger:             nil,
@@ -1198,7 +1199,7 @@ load 10s
 	origMaxSamples := engine.maxSamplesPerQuery
 	for _, c := range cases {
 		t.Run(c.Query, func(t *testing.T) {
-			opts := &QueryOpts{EnablePerStepStats: true}
+			opts := NewPrometheusQueryOpts(true, 0)
 			engine.maxSamplesPerQuery = origMaxSamples
 
 			runQuery := func(expErr error) *stats.Statistics {
@@ -4626,9 +4627,7 @@ metric 0 1 2
 			if c.engineLookback != 0 {
 				eng.lookbackDelta = c.engineLookback
 			}
-			opts := &QueryOpts{
-				LookbackDelta: c.queryLookback,
-			}
+			opts := NewPrometheusQueryOpts(false, c.queryLookback)
 			qry, err := eng.NewInstantQuery(test.context, test.Queryable(), opts, query, c.ts)
 			require.NoError(t, err)
 
