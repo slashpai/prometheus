@@ -124,6 +124,10 @@ func Errorf(format string, args ...interface{}) {
 	level.Error(logger).Log("func", "Errorf", "msg", fmt.Sprintf(format, args...))
 }
 
+func ErrorS(err error, msg string, keysAndValues ...interface{}) {
+	level.Error(logger).Log("func", "ErrorS", "msg", msg, "err", err, keysAndValues)
+}
+
 func Fatal(args ...interface{}) {
 	level.Error(logger).Log("func", "Fatal", "msg", fmt.Sprint(args...))
 	os.Exit(255)
@@ -162,4 +166,18 @@ func Exitln(args ...interface{}) {
 func Exitf(format string, args ...interface{}) {
 	level.Error(logger).Log("func", "Exitf", "msg", fmt.Sprintf(format, args...))
 	os.Exit(1)
+}
+
+// ObjectRef references a kubernetes object
+type ObjectRef struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace,omitempty"`
+}
+
+// KRef returns ObjectRef from name and namespace
+func KRef(namespace, name string) ObjectRef {
+	return ObjectRef{
+		Name:      name,
+		Namespace: namespace,
+	}
 }
