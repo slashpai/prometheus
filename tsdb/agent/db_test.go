@@ -33,6 +33,7 @@ import (
 	"github.com/prometheus/prometheus/storage"
 	"github.com/prometheus/prometheus/storage/remote"
 	"github.com/prometheus/prometheus/tsdb"
+	"github.com/prometheus/prometheus/tsdb/chunks"
 	"github.com/prometheus/prometheus/tsdb/record"
 	"github.com/prometheus/prometheus/tsdb/tsdbutil"
 	"github.com/prometheus/prometheus/tsdb/wlog"
@@ -132,7 +133,7 @@ func TestCommit(t *testing.T) {
 		lset := labels.New(l...)
 
 		for i := 0; i < numDatapoints; i++ {
-			sample := tsdbutil.GenerateSamples(0, 1)
+			sample := chunks.GenerateSamples(0, 1)
 			ref, err := app.Append(0, lset, sample[0].T(), sample[0].F())
 			require.NoError(t, err)
 
@@ -247,7 +248,7 @@ func TestRollback(t *testing.T) {
 		lset := labels.New(l...)
 
 		for i := 0; i < numDatapoints; i++ {
-			sample := tsdbutil.GenerateSamples(0, 1)
+			sample := chunks.GenerateSamples(0, 1)
 			_, err := app.Append(0, lset, sample[0].T(), sample[0].F())
 			require.NoError(t, err)
 		}
@@ -333,8 +334,8 @@ func TestRollback(t *testing.T) {
 		}
 	}
 
-	// Check that the rollback ensured nothing got stored.
-	require.Equal(t, 0, walSeriesCount, "series should not have been written to WAL")
+	// Check that only series get stored after calling Rollback.
+	require.Equal(t, numSeries*3, walSeriesCount, "series should have been written to WAL")
 	require.Equal(t, 0, walSamplesCount, "samples should not have been written to WAL")
 	require.Equal(t, 0, walExemplarsCount, "exemplars should not have been written to WAL")
 	require.Equal(t, 0, walHistogramCount, "histograms should not have been written to WAL")
