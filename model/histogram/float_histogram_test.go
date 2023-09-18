@@ -939,6 +939,21 @@ func TestFloatHistogramCompact(t *testing.T) {
 			},
 		},
 		{
+			"cut empty buckets in the middle",
+			&FloatHistogram{
+				PositiveSpans:   []Span{{5, 4}},
+				PositiveBuckets: []float64{1, 3, 0, 2},
+			},
+			0,
+			&FloatHistogram{
+				PositiveSpans: []Span{
+					{Offset: 5, Length: 2},
+					{Offset: 1, Length: 1},
+				},
+				PositiveBuckets: []float64{1, 3, 2},
+			},
+		},
+		{
 			"cut empty buckets at start or end of spans, even in the middle",
 			&FloatHistogram{
 				PositiveSpans:   []Span{{-4, 6}, {3, 6}},
@@ -955,7 +970,7 @@ func TestFloatHistogramCompact(t *testing.T) {
 			},
 		},
 		{
-			"cut empty buckets at start or end but merge spans due to maxEmptyBuckets",
+			"cut empty buckets at start and end - also merge spans due to maxEmptyBuckets",
 			&FloatHistogram{
 				PositiveSpans:   []Span{{-4, 4}, {5, 3}},
 				PositiveBuckets: []float64{0, 0, 1, 3.3, 4.2, 0.1, 3.3},
@@ -999,17 +1014,41 @@ func TestFloatHistogramCompact(t *testing.T) {
 			},
 		},
 		{
+			"cut empty buckets from the middle of a span, avoiding none due to maxEmptyBuckets",
+			&FloatHistogram{
+				PositiveSpans:   []Span{{-2, 4}},
+				PositiveBuckets: []float64{1, 0, 0, 3.3},
+			},
+			1,
+			&FloatHistogram{
+				PositiveSpans:   []Span{{-2, 1}, {2, 1}},
+				PositiveBuckets: []float64{1, 3.3},
+			},
+		},
+		{
+			"cut empty buckets and merge spans due to maxEmptyBuckets",
+			&FloatHistogram{
+				PositiveSpans:   []Span{{-2, 4}, {3, 1}},
+				PositiveBuckets: []float64{1, 0, 0, 3.3, 4.2},
+			},
+			1,
+			&FloatHistogram{
+				PositiveSpans:   []Span{{-2, 1}, {2, 1}, {3, 1}},
+				PositiveBuckets: []float64{1, 3.3, 4.2},
+			},
+		},
+		{
 			"cut empty buckets from the middle of a span, avoiding some due to maxEmptyBuckets",
 			&FloatHistogram{
-				PositiveSpans:   []Span{{-4, 6}, {3, 3}},
-				PositiveBuckets: []float64{0, 0, 1, 0, 0, 3.3, 4.2, 0.1, 3.3},
+				PositiveSpans:   []Span{{-4, 6}, {3, 3}, {10, 2}},
+				PositiveBuckets: []float64{0, 0, 1, 0, 0, 3.3, 4.2, 0.1, 3.3, 2, 3},
 				NegativeSpans:   []Span{{0, 2}, {3, 5}},
 				NegativeBuckets: []float64{3.1, 3, 1.234e5, 1000, 0, 3, 4},
 			},
 			1,
 			&FloatHistogram{
-				PositiveSpans:   []Span{{-2, 1}, {2, 1}, {3, 3}},
-				PositiveBuckets: []float64{1, 3.3, 4.2, 0.1, 3.3},
+				PositiveSpans:   []Span{{-2, 1}, {2, 1}, {3, 3}, {10, 2}},
+				PositiveBuckets: []float64{1, 3.3, 4.2, 0.1, 3.3, 2, 3},
 				NegativeSpans:   []Span{{0, 2}, {3, 5}},
 				NegativeBuckets: []float64{3.1, 3, 1.234e5, 1000, 0, 3, 4},
 			},
@@ -2204,4 +2243,51 @@ func TestAllReverseFloatBucketIterator(t *testing.T) {
 			require.Equal(t, expBuckets, actBuckets)
 		})
 	}
+}
+
+func TestFloatBucketIteratorTargetSchema(t *testing.T) {
+	h := FloatHistogram{
+		Count:  405,
+		Sum:    1008.4,
+		Schema: 1,
+		PositiveSpans: []Span{
+			{Offset: 0, Length: 4},
+			{Offset: 1, Length: 3},
+			{Offset: 2, Length: 3},
+		},
+		PositiveBuckets: []float64{100, 344, 123, 55, 3, 63, 2, 54, 235, 33},
+		NegativeSpans: []Span{
+			{Offset: 0, Length: 3},
+			{Offset: 7, Length: 4},
+			{Offset: 1, Length: 3},
+		},
+		NegativeBuckets: []float64{10, 34, 1230, 54, 67, 63, 2, 554, 235, 33},
+	}
+	expPositiveBuckets := []Bucket[float64]{
+		{Lower: 0.25, Upper: 1, LowerInclusive: false, UpperInclusive: true, Count: 100, Index: 0},
+		{Lower: 1, Upper: 4, LowerInclusive: false, UpperInclusive: true, Count: 522, Index: 1},
+		{Lower: 4, Upper: 16, LowerInclusive: false, UpperInclusive: true, Count: 68, Index: 2},
+		{Lower: 16, Upper: 64, LowerInclusive: false, UpperInclusive: true, Count: 322, Index: 3},
+	}
+	expNegativeBuckets := []Bucket[float64]{
+		{Lower: -1, Upper: -0.25, LowerInclusive: true, UpperInclusive: false, Count: 10, Index: 0},
+		{Lower: -4, Upper: -1, LowerInclusive: true, UpperInclusive: false, Count: 1264, Index: 1},
+		{Lower: -64, Upper: -16, LowerInclusive: true, UpperInclusive: false, Count: 184, Index: 3},
+		{Lower: -256, Upper: -64, LowerInclusive: true, UpperInclusive: false, Count: 791, Index: 4},
+		{Lower: -1024, Upper: -256, LowerInclusive: true, UpperInclusive: false, Count: 33, Index: 5},
+	}
+
+	it := h.floatBucketIterator(true, 0, -1)
+	for i, b := range expPositiveBuckets {
+		require.True(t, it.Next(), "positive iterator exhausted too early")
+		require.Equal(t, b, it.At(), "bucket %d", i)
+	}
+	require.False(t, it.Next(), "positive iterator not exhausted")
+
+	it = h.floatBucketIterator(false, 0, -1)
+	for i, b := range expNegativeBuckets {
+		require.True(t, it.Next(), "negative iterator exhausted too early")
+		require.Equal(t, b, it.At(), "bucket %d", i)
+	}
+	require.False(t, it.Next(), "negative iterator not exhausted")
 }

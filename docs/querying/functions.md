@@ -14,7 +14,7 @@ vector, which if not provided it will default to the value of the expression
 _Notes about the experimental native histograms:_
 
 * Ingesting native histograms has to be enabled via a [feature
-  flag](../feature_flags/#native-histograms). As long as no native histograms
+  flag](../../feature_flags.md#native-histograms). As long as no native histograms
   have been ingested into the TSDB, all functions will behave as usual.
 * Functions that do not explicitly mention native histograms in their
   documentation (see below) will ignore histogram samples.
@@ -145,7 +145,7 @@ delta(cpu_temp_celsius{host="zeus"}[2h])
 ```
 
 `delta` acts on native histograms by calculating a new histogram where each
-compononent (sum and count of observations, buckets) is the difference between
+component (sum and count of observations, buckets) is the difference between
 the respective component in the first and last native histogram in
 `v`. However, each element in `v` that contains a mix of float and native
 histogram samples within the range, will be missing from the result vector.
@@ -323,6 +323,19 @@ a histogram.
 You can use `histogram_quantile(1, v instant-vector)` to get the estimated maximum value stored in
 a histogram.
 
+## `histogram_stddev()` and `histogram_stdvar()`
+
+_Both functions only act on native histograms, which are an experimental
+feature. The behavior of these functions may change in future versions of
+Prometheus, including their removal from PromQL._
+
+`histogram_stddev(v instant-vector)` returns the estimated standard deviation
+of observations in a native histogram, based on the geometric mean of the buckets
+where the observations lie. Samples that are not native histograms are ignored and
+do not show up in the returned vector.
+
+Similarly, `histogram_stdvar(v instant-vector)` returns the estimated standard
+variance of observations in a native histogram.
 
 ## `holt_winters()`
 
@@ -419,11 +432,10 @@ label_join(up{job="api-server",src1="a",src2="b",src3="c"}, "foo", ",", "src1", 
 ## `label_replace()`
 
 For each timeseries in `v`, `label_replace(v instant-vector, dst_label string, replacement string, src_label string, regex string)`
-matches the regular expression `regex` against the value of the label `src_label`. If it
+matches the [regular expression](https://github.com/google/re2/wiki/Syntax) `regex` against the value of the label `src_label`. If it
 matches, the value of the label `dst_label` in the returned timeseries will be the expansion
 of `replacement`, together with the original labels in the input. Capturing groups in the
-regular expression can be referenced with `$1`, `$2`, etc. If the regular expression doesn't
-match then the timeseries is returned unchanged.
+regular expression can be referenced with `$1`, `$2`, etc. Named capturing groups in the regular expression can be referenced with `$name` (where `name` is the  capturing group name). If the regular expression doesn't match then the timeseries is returned unchanged.
 
 `label_replace` acts on float and histogram samples in the same way.
 
@@ -431,6 +443,11 @@ This example will return timeseries with the values `a:c` at label `service` and
 
 ```
 label_replace(up{job="api-server",service="a:c"}, "foo", "$1", "service", "(.*):.*")
+```
+
+This second example has the same effect than the first example, and illustrates use of named capturing groups:
+```
+label_replace(up{job="api-server",service="a:c"}, "foo", "$name", "service", "(?P<name>.*):(?P<version>.*)")
 ```
 
 ## `ln()`
@@ -491,7 +508,7 @@ rate(http_requests_total{job="api-server"}[5m])
 ```
 
 `rate` acts on native histograms by calculating a new histogram where each
-compononent (sum and count of observations, buckets) is the rate of increase
+component (sum and count of observations, buckets) is the rate of increase
 between the respective component in the first and last native histogram in
 `v`. However, each element in `v` that contains a mix of float and native
 histogram samples within the range, will be missing from the result vector.
