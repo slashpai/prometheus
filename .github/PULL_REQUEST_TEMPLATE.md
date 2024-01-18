@@ -1,4 +1,10 @@
 <!--
+    OpenShift: Don't forget to run `./scripts/rh-manifest.sh` from the
+    repository root, and check-in the updated `rh-manifest.txt` file if
+    necessary.
+-->
+
+<!--
     Please give your PR a title in the form "area: short description".  For example "tsdb: reduce disk usage by 95%"
 
     If your PR is to fix an issue, put "Fixes #issue-number" in the description.
