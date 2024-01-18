@@ -18,7 +18,6 @@ build:
         windows:
             - builtinassets
             - stringlabels
-    flags: -a
     ldflags: |
         -s
         -X github.com/prometheus/common/version.Version={{.Version}}

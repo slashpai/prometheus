@@ -17,13 +17,13 @@ import (
 	"container/heap"
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math/rand"
 	"sort"
 	"strconv"
 	"testing"
 
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 
 	"github.com/prometheus/prometheus/model/labels"
@@ -977,7 +977,7 @@ func TestMemPostings_Delete(t *testing.T) {
 	deleted := p.Get("lbl1", "b")
 	expanded, err = ExpandPostings(deleted)
 	require.NoError(t, err)
-	require.Equal(t, 0, len(expanded), "expected empty postings, got %v", expanded)
+	require.Empty(t, expanded, "expected empty postings, got %v", expanded)
 }
 
 func TestFindIntersectingPostings(t *testing.T) {
