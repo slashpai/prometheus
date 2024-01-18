@@ -30,7 +30,7 @@ type NomadSDTestSuite struct {
 	Mock *SDMock
 }
 
-// SDMock is the interface for the nomad mock
+// SDMock is the interface for the nomad mock.
 type SDMock struct {
 	t      *testing.T
 	Server *httptest.Server
@@ -147,12 +147,12 @@ func TestNomadSDRefresh(t *testing.T) {
 	tgs, err := d.refresh(context.Background())
 	require.NoError(t, err)
 
-	require.Equal(t, 1, len(tgs))
+	require.Len(t, tgs, 1)
 
 	tg := tgs[0]
 	require.NotNil(t, tg)
 	require.NotNil(t, tg.Targets)
-	require.Equal(t, 1, len(tg.Targets))
+	require.Len(t, tg.Targets, 1)
 
 	lbls := model.LabelSet{
 		"__address__":                  model.LabelValue("127.0.0.1:30456"),
