@@ -2,7 +2,6 @@ component: "Monitoring"
 
 reviewers:
 - simonpasquier
-- raptorsun
 - slashpai
 - jan--f
 - marioferh
@@ -12,7 +11,6 @@ reviewers:
 
 approvers:
 - simonpasquier
-- raptorsun
 - slashpai
 - jan--f
 - marioferh
@@ -34,3 +32,4 @@ emeritus_approvers:
 - sthaha
 - JoaoBraveCoding
 - juanrh
+- raptorsun
