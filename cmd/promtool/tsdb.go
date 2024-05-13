@@ -33,6 +33,7 @@ import (
 
 	"github.com/alecthomas/units"
 	"github.com/go-kit/log"
+	"go.uber.org/atomic"
 
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/promql/parser"
@@ -149,8 +150,7 @@ func benchmarkWrite(outPath, samplesFile string, numMetrics, numScrapes int) err
 }
 
 func (b *writeBenchmark) ingestScrapes(lbls []labels.Labels, scrapeCount int) (uint64, error) {
-	var mu sync.Mutex
-	var total uint64
+	var total atomic.Uint64
 
 	for i := 0; i < scrapeCount; i += 100 {
 		var wg sync.WaitGroup
@@ -165,22 +165,21 @@ func (b *writeBenchmark) ingestScrapes(lbls []labels.Labels, scrapeCount int) (u
 
 			wg.Add(1)
 			go func() {
+				defer wg.Done()
+
 				n, err := b.ingestScrapesShard(batch, 100, int64(timeDelta*i))
 				if err != nil {
 					// exitWithError(err)
 					fmt.Println(" err", err)
 				}
-				mu.Lock()
-				total += n
-				mu.Unlock()
-				wg.Done()
+				total.Add(n)
 			}()
 		}
 		wg.Wait()
 	}
 	fmt.Println("ingestion completed")
 
-	return total, nil
+	return total.Load(), nil
 }
 
 func (b *writeBenchmark) ingestScrapesShard(lbls []labels.Labels, scrapeCount int, baset int64) (uint64, error) {
@@ -839,6 +838,10 @@ func backfillOpenMetrics(path, outputDir string, humanReadable, quiet bool, maxB
 }
 
 func displayHistogram(dataType string, datas []int, total int) {
+	if len(datas) == 0 {
+		fmt.Printf("%s: N/A\n\n", dataType)
+		return
+	}
 	slices.Sort(datas)
 	start, end, step := generateBucket(datas[0], datas[len(datas)-1])
 	sum := 0
